@@ -1,3 +1,5 @@
+<img src="./muse.png" width="450px"></img>
+
 ## Muse - Pytorch (wip)
 
 Implementation of <a href="https://muse-model.github.io/">Muse</a>: Text-to-Image Generation via Masked Generative Transformers, in Pytorch
