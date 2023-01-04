@@ -35,6 +35,7 @@ def FeedForward(dim, mult = 4):
 
     inner_dim = int(dim * mult * 2 / 3)
     return nn.Sequential(
+        LayerNorm(dim),
         nn.Linear(dim, inner_dim * 2, bias = False),
         GEGLU(),
         LayerNorm(inner_dim),
@@ -52,6 +53,8 @@ class Attention(nn.Module):
         self.scale = dim_head ** -0.5
         self.heads =  heads
         inner_dim = dim_head * heads
+
+        self.norm = LayerNorm(dim)
         self.to_q = nn.Linear(dim, inner_dim, bias = False)
         self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
         self.to_out = nn.Linear(inner_dim, dim, bias = False)
@@ -63,6 +66,9 @@ class Attention(nn.Module):
         context_mask = None
     ):
         h, is_cross_attn = self.heads, exists(context)
+
+        x = self.norm(x)
+
         kv_input = default(context, x)
 
         q, k, v = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
