@@ -77,3 +77,105 @@ class Attention(nn.Module):
 
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
+
+class Transformer(nn.Module):
+    def __init__(
+        self,
+        *,
+        dim,
+        depth,
+        dim_head = 64,
+        heads = 8,
+        cross_attend = False,
+        ff_mult = 4
+    ):
+        super().__init__()
+        self.layers = nn.ModuleList([])
+        self.cross_attend = cross_attend
+
+        for _ in range(depth):
+            self.layers.append(nn.ModuleList([
+                Attention(dim = dim, dim_head = dim_head, heads = heads),
+                Attention(dim = dim, dim_head = dim_head, heads = heads) if cross_attend else None,
+                FeedForward(dim = dim, mult = ff_mult)
+            ]))
+
+    def forward(self, x, context = None):
+        assert not (exists(context) ^ self.cross_attend)
+
+        for attn, cross_attn, ff in self.layers:
+            x = attn(x) + x
+
+            if exists(cross_attn):
+                x = cross_attn(x, context = context) + x
+
+            x = ff(x) + x
+
+        return x
+
+class BaseTransformer(nn.Module):
+    def __init__(
+        self,
+        *,
+        num_tokens,
+        dim,
+        seq_len,
+        **kwargs
+    ):
+        super().__init__()
+        self.token_emb = nn.Embedding(num_tokens, dim)
+        self.pos_emb = nn.Embedding(seq_len, dim)
+        self.seq_len = seq_len
+
+        self.transformer = Transformer(dim = dim, **kwargs)
+        self.norm = LayerNorm(dim)
+
+        self.to_logits = nn.Linear(dim, num_tokens, bias = False)
+
+    def forward(self, x, return_embed = False):
+        device, n = x.device, x.shape[1]
+        assert n <= self.seq_len
+
+        x = self.token_emb(x)
+        x = x + self.pos_emb(torch.arange(n, device = device))
+
+        x = self.transformer(x)
+
+        x = self.norm(x)
+
+        if return_embed:
+            return x
+
+        return self.to_logits(x)
+
+class SuperResTransformer(nn.Module):
+    def __init__(
+        self,
+        *,
+        num_tokens,
+        dim,
+        seq_len,
+        **kwargs
+    ):
+        super().__init__()
+        self.token_emb = nn.Embedding(num_tokens, dim)
+        self.pos_emb = nn.Embedding(seq_len, dim)
+        self.seq_len = seq_len
+
+        self.transformer = Transformer(dim = dim, cross_attend = True, **kwargs)
+        self.norm = LayerNorm(dim)
+
+        self.to_logits = nn.Linear(dim, num_tokens, bias = False)
+
+    def forward(self, x, context = None):
+        device, n = x.device, x.shape[1]
+        assert n <= self.seq_len
+
+        x = self.token_emb(x)
+        x = x + self.pos_emb(torch.arange(n, device = device))
+
+        x = self.transformer(x, context = context)
+
+        x = self.norm(x)
+
+        return self.to_logits(x)
