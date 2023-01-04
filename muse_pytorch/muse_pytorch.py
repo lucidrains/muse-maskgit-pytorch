@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from torch import nn, einsum
 
 from einops import rearrange
@@ -12,6 +13,33 @@ def default(val, d):
     return val if exists(val) else d
 
 # classes
+
+class LayerNorm(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.gamma = nn.Parameter(torch.ones(dim))
+        self.register_buffer('beta', torch.zeros(dim))
+
+    def forward(self, x):
+        return F.layer_norm(x, x.shape[-1:], self.gamma, self.beta)
+
+class GEGLU(nn.Module):
+    """ https://arxiv.org/abs/2002.05202 """
+
+    def forward(self, x):
+        x, gate = x.chunk(2, dim = -1)
+        return gate * F.gelu(x)
+
+def FeedForward(dim, mult = 4):
+    """ https://arxiv.org/abs/2110.09456 """
+
+    inner_dim = int(dim * mult * 2 / 3)
+    return nn.Sequential(
+        nn.Linear(dim, inner_dim * 2, bias = False),
+        GEGLU(),
+        LayerNorm(inner_dim),
+        nn.Linear(inner_dim, dim, bias = False)
+    )
 
 class Attention(nn.Module):
     def __init__(
