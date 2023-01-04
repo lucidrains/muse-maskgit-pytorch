@@ -59,7 +59,8 @@ class Attention(nn.Module):
     def forward(
         self,
         x,
-        context = None
+        context = None,
+        context_mask = None
     ):
         h, is_cross_attn = self.heads, exists(context)
         kv_input = default(context, x)
@@ -71,6 +72,11 @@ class Attention(nn.Module):
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), (q, k, v))
 
         sim = einsum('b h i d, b h j d -> b h i j', q, k)
+
+        if exists(context_mask):
+            context_mask = rearrange(context_mask, 'b j -> b 1 1 j')
+            mask_value = -torch.finfo(sim.dtype).max
+            sim = sim.masked_fill(~context_mask, mask_value)
 
         attn = sim.softmax(dim = -1)
         out = einsum('b h i j, b h j d -> b h i d', attn, v)
@@ -100,14 +106,14 @@ class Transformer(nn.Module):
                 FeedForward(dim = dim, mult = ff_mult)
             ]))
 
-    def forward(self, x, context = None):
+    def forward(self, x, context = None, context_mask = None):
         assert not (exists(context) ^ self.cross_attend)
 
         for attn, cross_attn, ff in self.layers:
             x = attn(x) + x
 
             if exists(cross_attn):
-                x = cross_attn(x, context = context) + x
+                x = cross_attn(x, context = context, context_mask = context_mask) + x
 
             x = ff(x) + x
 
@@ -167,14 +173,14 @@ class SuperResTransformer(nn.Module):
 
         self.to_logits = nn.Linear(dim, num_tokens, bias = False)
 
-    def forward(self, x, context = None):
+    def forward(self, x, context = None, context_mask = None):
         device, n = x.device, x.shape[1]
         assert n <= self.seq_len
 
         x = self.token_emb(x)
         x = x + self.pos_emb(torch.arange(n, device = device))
 
-        x = self.transformer(x, context = context)
+        x = self.transformer(x, context = context, context_mask = context_mask)
 
         x = self.norm(x)
 
