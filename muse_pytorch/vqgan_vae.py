@@ -86,26 +86,24 @@ def log(t, eps = 1e-10):
 
 def gradient_penalty(images, output, weight = 10):
     batch_size = images.shape[0]
-    gradients = torch_grad(outputs = output, inputs = images,
-                           grad_outputs = torch.ones(output.size(), device = images.device),
-                           create_graph = True, retain_graph = True, only_inputs = True)[0]
+
+    gradients = torch_grad(
+        outputs = output,
+        inputs = images,
+        grad_outputs = torch.ones(output.size(), device = images.device),
+        create_graph = True,
+        retain_graph = True,
+        only_inputs = True
+    )[0]
 
     gradients = rearrange(gradients, 'b ... -> b (...)')
     return weight * ((gradients.norm(2, dim = 1) - 1) ** 2).mean()
 
-def l2norm(t):
-    return F.normalize(t, dim = -1)
-
 def leaky_relu(p = 0.1):
     return nn.LeakyReLU(0.1)
 
-def stable_softmax(t, dim = -1, alpha = 32 ** 2):
-    t = t / alpha
-    t = t - torch.amax(t, dim = dim, keepdim = True).detach()
-    return (t * alpha).softmax(dim = dim)
-
 def safe_div(numer, denom, eps = 1e-8):
-    return numer / (denom + eps)
+    return numer / denom.clamp(min = eps)
 
 # gan losses
 
@@ -180,42 +178,6 @@ class Discriminator(nn.Module):
             x = net(x)
 
         return self.to_logits(x)
-
-# positional encoding
-
-class ContinuousPositionBias(nn.Module):
-    """ from https://arxiv.org/abs/2111.09883 """
-
-    def __init__(self, *, dim, heads, layers = 2):
-        super().__init__()
-        self.net = MList([])
-        self.net.append(nn.Sequential(nn.Linear(2, dim), leaky_relu()))
-
-        for _ in range(layers - 1):
-            self.net.append(nn.Sequential(nn.Linear(dim, dim), leaky_relu()))
-
-        self.net.append(nn.Linear(dim, heads))
-        self.register_buffer('rel_pos', None, persistent = False)
-
-    def forward(self, x):
-        n, device = x.shape[-1], x.device
-        fmap_size = int(sqrt(n))
-
-        if not exists(self.rel_pos):
-            pos = torch.arange(fmap_size, device = device)
-            grid = torch.stack(torch.meshgrid(pos, pos, indexing = 'ij'))
-            grid = rearrange(grid, 'c i j -> (i j) c')
-            rel_pos = rearrange(grid, 'i c -> i 1 c') - rearrange(grid, 'j c -> 1 j c')
-            rel_pos = torch.sign(rel_pos) * torch.log(rel_pos.abs() + 1)
-            self.register_buffer('rel_pos', rel_pos, persistent = False)
-
-        rel_pos = self.rel_pos.float()
-
-        for layer in self.net:
-            rel_pos = layer(rel_pos)
-
-        bias = rearrange(rel_pos, 'i j h -> h i j')
-        return x + bias
 
 # resnet encoder / decoder
 
@@ -324,7 +286,6 @@ class VQGanVAE(nn.Module):
         self,
         *,
         dim,
-        image_size,
         channels = 3,
         layers = 4,
         l2_recon_loss = False,
@@ -337,7 +298,6 @@ class VQGanVAE(nn.Module):
         vq_kmeans_init = True,
         vq_use_cosine_sim = True,
         use_vgg_and_gan = True,
-        vae_type = 'resnet',
         discr_layers = 4,
         **kwargs
     ):
@@ -345,9 +305,9 @@ class VQGanVAE(nn.Module):
         vq_kwargs, kwargs = groupby_prefix_and_trim('vq_', kwargs)
         encdec_kwargs, kwargs = groupby_prefix_and_trim('encdec_', kwargs)
 
-        self.image_size = image_size
         self.channels = channels
         self.codebook_size = vq_codebook_size
+        self.dim_divisor = 2 ** layers
 
         enc_dec_klass = ResnetEncDec
 
@@ -455,7 +415,10 @@ class VQGanVAE(nn.Module):
         add_gradient_penalty = True
     ):
         batch, channels, height, width, device = *img.shape, img.device
-        assert height == self.image_size and width == self.image_size, 'height and width of input image must be equal to {self.image_size}'
+
+        for dim_name, size in (('height', height), ('width', width)):
+            assert (size % self.dim_divisor) == 0, f'{dim_name} must be divisible by {self.dim_divisor}'
+
         assert channels == self.channels, 'number of channels on image or sketch is not equal to the channels set on this VQGanVAE'
 
         fmap = self.encode(img)
