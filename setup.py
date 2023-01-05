@@ -18,9 +18,14 @@ setup(
     'text-to-image'
   ],
   install_requires=[
+    'beartype',
     'einops>=0.6',
+    'ema-pytorch',
     'torch>=1.6',
-    'transformers'
+    'transformers',
+    'torch>=1.6',
+    'torchvision',
+    'vector-quantize-pytorch>=0.10.14'
   ],
   classifiers=[
     'Development Status :: 4 - Beta',

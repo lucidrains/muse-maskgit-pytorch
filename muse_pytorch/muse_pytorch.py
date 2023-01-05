@@ -95,7 +95,7 @@ class Attention(nn.Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-class Transformer(nn.Module):
+class TransformerBlocks(nn.Module):
     def __init__(
         self,
         *,
@@ -127,9 +127,7 @@ class Transformer(nn.Module):
 
         return self.norm(x)
 
-class MaskGit(nn.Module):
-    """ https://arxiv.org/abs/2202.04200 """
-
+class Transformer(nn.Module):
     def __init__(
         self,
         *,
@@ -143,7 +141,7 @@ class MaskGit(nn.Module):
         self.pos_emb = nn.Embedding(seq_len, dim)
         self.seq_len = seq_len
 
-        self.transformer = Transformer(dim = dim, **kwargs)
+        self.transformer = TransformerBlocks(dim = dim, **kwargs)
         self.norm = LayerNorm(dim)
 
         self.to_logits = nn.Linear(dim, num_tokens, bias = False)
@@ -173,3 +171,33 @@ class MaskGit(nn.Module):
 
         logits = rearrange(logits, 'b n c -> b c n')
         return F.cross_entropy(logits, labels, ignore_index = ignore_index)
+
+class BaseMaskGit(nn.Module):
+    def __init__(
+        self,
+        base_transformer: Transformer
+    ):
+        super().__init__()
+        self.base_transformer = base_transformer
+
+    def generate(self):
+        raise NotImplementedError
+
+    def forward(self, x):
+        return x
+
+class SuperResMaskGit(nn.Module):
+    def __init__(
+        self,
+        base_maskgit: BaseMaskGit,
+        superres_transformer: Transformer
+    ):
+        super().__init__()
+        self.base_maskgit = base_maskgit
+        self.superres_transformer = superres_transformer
+
+    def generate(self):
+        raise NotImplementedError
+
+    def forward(self, x):
+        return x
