@@ -127,7 +127,9 @@ class Transformer(nn.Module):
 
         return self.norm(x)
 
-class MaskGitTransformer(nn.Module):
+class MaskGit(nn.Module):
+    """ https://arxiv.org/abs/2202.04200 """
+
     def __init__(
         self,
         *,
@@ -146,7 +148,13 @@ class MaskGitTransformer(nn.Module):
 
         self.to_logits = nn.Linear(dim, num_tokens, bias = False)
 
-    def forward(self, x, return_embed = False):
+    def forward(
+        self,
+        x,
+        return_embed = False,
+        labels = None,
+        ignore_index = 0
+    ):
         device, n = x.device, x.shape[1]
         assert n <= self.seq_len
 
@@ -158,4 +166,10 @@ class MaskGitTransformer(nn.Module):
         if return_embed:
             return x
 
-        return self.to_logits(x)
+        logits = self.to_logits(x)
+
+        if not exists(labels):
+            return logits
+
+        logits = rearrange(logits, 'b n c -> b c n')
+        return F.cross_entropy(logits, labels, ignore_index = ignore_index)
