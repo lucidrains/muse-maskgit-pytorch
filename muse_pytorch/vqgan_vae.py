@@ -394,17 +394,11 @@ class VQGanVAE(nn.Module):
 
     def encode(self, fmap):
         fmap = self.enc_dec.encode(fmap)
-        return fmap
+        fmap, indices, commit_loss = self.vq(fmap)
+        return fmap, indices, commit_loss
 
     def decode(self, fmap, return_indices_and_loss = False):
-        fmap, indices, commit_loss = self.vq(fmap)
-
-        fmap = self.enc_dec.decode(fmap)
-
-        if not return_indices_and_loss:
-            return fmap
-
-        return fmap, indices, commit_loss
+        return self.enc_dec.decode(fmap)
 
     def forward(
         self,
@@ -421,9 +415,9 @@ class VQGanVAE(nn.Module):
 
         assert channels == self.channels, 'number of channels on image or sketch is not equal to the channels set on this VQGanVAE'
 
-        fmap = self.encode(img)
+        fmap, indices, commit_loss = self.encode(img)
 
-        fmap, indices, commit_loss = self.decode(fmap, return_indices_and_loss = True)
+        fmap = self.decode(fmap)
 
         if not return_loss and not return_discr_loss:
             return fmap

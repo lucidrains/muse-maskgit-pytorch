@@ -52,11 +52,14 @@ class Attention(nn.Module):
     def __init__(
         self,
         dim,
+        dim_context = None,
         dim_head = 64,
         heads = 8,
         cross_attend = False
     ):
         super().__init__()
+        dim_context = default(dim_context, dim)
+
         self.scale = dim_head ** -0.5
         self.heads =  heads
         inner_dim = dim_head * heads
@@ -67,7 +70,7 @@ class Attention(nn.Module):
         self.null_kv = nn.Parameter(torch.randn(2, heads, 1, dim_head))
 
         self.to_q = nn.Linear(dim, inner_dim, bias = False)
-        self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
+        self.to_kv = nn.Linear(dim_context, inner_dim * 2, bias = False)
         self.to_out = nn.Linear(inner_dim, dim, bias = False)
 
     def forward(
@@ -91,7 +94,7 @@ class Attention(nn.Module):
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), (q, k, v))
 
         nk, nv = self.null_kv
-        nk, nv = map(lambda t: repeat(t, 'h 1 d -> b h 1 d', b = x.shape[0]))
+        nk, nv = map(lambda t: repeat(t, 'h 1 d -> b h 1 d', b = x.shape[0]), (nk, nv))
 
         k = torch.cat((nk, k), dim = -2)
         v = torch.cat((nv, v), dim = -2)
@@ -117,6 +120,7 @@ class TransformerBlocks(nn.Module):
         *,
         dim,
         depth,
+        dim_context = None,
         dim_head = 64,
         heads = 8,
         ff_mult = 4
@@ -127,7 +131,7 @@ class TransformerBlocks(nn.Module):
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
                 Attention(dim = dim, dim_head = dim_head, heads = heads),
-                Attention(dim = dim, dim_head = dim_head, heads = heads, cross_attend = True),
+                Attention(dim = dim, dim_head = dim_head, heads = heads, dim_context = dim_context, cross_attend = True),
                 FeedForward(dim = dim, mult = ff_mult)
             ]))
 
@@ -229,7 +233,7 @@ class MaskGit(nn.Module):
         vae: Optional[VQGanVAE] = None
     ):
         super().__init__()
-        self.vae = vae
+        self.vae = vae.copy_for_eval()
         self.transformer = transformer
         self.noise_schedule = noise_schedule
 
@@ -238,10 +242,21 @@ class MaskGit(nn.Module):
 
     def forward(
         self,
-        ids,
+        images_or_ids: torch.Tensor,
         ignore_index = -1
     ):
         batch, seq_len, device = *ids.shape, ids.device
+
+        # tokenize if needed
+
+        if images_or_ids.dtype == torch.float:
+            assert exists(self.vae), 'vqgan vae must be passed in if training from raw images'
+            with torch.no_grad():
+                _, ids, _ = self.vae.encode(images_or_ids)
+        else:
+            ids = images_or_ids
+
+        # prepare mask
 
         rand_time = uniform((batch,), device = device)
         rand_mask_probs = self.noise_schedule(rand_time)
@@ -254,6 +269,8 @@ class MaskGit(nn.Module):
 
         x = torch.where(mask, mask_id, ids)
         labels = torch.where(mask, ids, ignore_index)
+
+        # get loss
 
         ce_loss = self.transformer(
             ids,
