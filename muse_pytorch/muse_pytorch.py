@@ -209,6 +209,21 @@ def prob_mask_like(shape, prob, device):
     else:
         return uniform(shape, device = device) < prob
 
+# sampling helpers
+
+def gumbel_noise(t):
+    noise = torch.zeros_like(t).uniform_(0, 1)
+    return -log(-log(noise))
+
+def gumbel_sample(t, temperature = 1., dim = -1):
+    return ((t / max(temperature, 1e-10)) + gumbel_noise(t)).argmax(dim = dim)
+
+def top_k(logits, thres = 0.9):
+    k = math.ceil((1 - thres) * logits.shape[-1])
+    val, ind = torch.topk(logits, k)
+    probs = torch.full_like(logits, float('-inf'))
+    return probs.scatter(1, ind, val)
+
 # noise schedules
 
 # in original maskgit paper, they claimed cosine schedule had best results
@@ -228,17 +243,75 @@ def arccosine_schedule(t):
 class MaskGit(nn.Module):
     def __init__(
         self,
+        image_size,
         transformer: Transformer,
         noise_schedule: Callable = arccosine_schedule,
         vae: Optional[VQGanVAE] = None
     ):
         super().__init__()
         self.vae = vae.copy_for_eval()
+        self.image_size = image_size
+
         self.transformer = transformer
+        self.mask_id = transformer.mask_id
         self.noise_schedule = noise_schedule
 
-    def generate(self):
-        raise NotImplementedError
+    def generate(
+        self,
+        fmap_size = None,
+        batch_size = 1,
+        temperature = 1.,
+        topk_thres = 0.9,
+        timesteps = 18  # ideal number of steps is 18 in maskgit paper
+    ):
+        fmap_size = default(fmap_size, self.vae.get_encoded_fmap_size(self.image_size))
+
+        # begin with all image token ids masked
+
+        seq_len = fmap_size ** 2
+
+        shape = (batch_size, seq_len)
+
+        ids = torch.full(shape, self.mask_id, dtype = torch.long)
+        scores = torch.zeros(shape, dtype = torch.float32)
+
+        starting_temperature = temperature
+
+        for timestep, steps_until_x0 in zip(torch.linspace(0, 1, timesteps), reversed(range(self.steps))):
+
+            rand_mask_prob = self.noise_schedule(timestep)
+            num_token_masked = max(rand_mask_prob.item(), 1)
+
+            masked_indices = scores.topk(num_token_masked, dim = -1).indices
+
+            ids = ids.scatter(1, masked_indices, self.mask_id)
+
+            logits = self.transformer(ids)
+
+            filtered_logits = top_k(logits, topk_thres)
+
+            temperature = starting_temperature * (steps_until_x0 / self.steps) # temperature is annealed
+
+            pred_ids = gumbel_sample(filtered_logits, temperature = temperature, dim = -1)
+
+            ids = torch.where(
+                ids == self.mask_id,
+                pred_ids,
+                ids
+            )
+
+            scores = logits.gather(2, pred_ids)
+
+        # get ids
+
+        ids = rearrange(ids, 'b (i j), -> b i j', i = fmap_size, j = fmap_size)
+
+        if not exists(self.vae):
+            return ids
+
+        codes = self.vae.codebook[ids]
+        images = self.vae.decode(codes)
+        return images
 
     def forward(
         self,
@@ -251,6 +324,8 @@ class MaskGit(nn.Module):
 
         if images_or_ids.dtype == torch.float:
             assert exists(self.vae), 'vqgan vae must be passed in if training from raw images'
+            assert all(height_or_width == self.image_size for height_or_width in images_or_ids.shape[-2:])
+
             with torch.no_grad():
                 _, ids, _ = self.vae.encode(images_or_ids)
         else:
@@ -262,6 +337,7 @@ class MaskGit(nn.Module):
         rand_mask_probs = self.noise_schedule(rand_time)
         num_token_masked = (seq_len * rand_mask_probs).round().clamp(min = 1)
 
+        mask_id = self.mask_id
         batch_randperm = torch.rand_like(ids).argsort(dim = -1)
         mask = batch_randperm < rearrange(num_token_masked, 'b -> b 1')
 
