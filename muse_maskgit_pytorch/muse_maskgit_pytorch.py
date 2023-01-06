@@ -228,6 +228,7 @@ class Transformer(nn.Module):
         # concat conditioning image token ids if needed
 
         if exists(conditioning_token_ids):
+            conditioning_token_ids = rearrange(conditioning_token_ids, 'b ... -> b (...)')
             cond_token_emb = self.token_emb(conditioning_token_ids)
             context = torch.cat((context, cond_token_emb), dim = -2)
             context_mask = F.pad(context_mask, (0, conditioning_token_ids.shape[-1]), value = True)
@@ -307,7 +308,6 @@ class MaskGit(nn.Module):
         vae: Optional[VQGanVAE] = None,
         cond_vae: Optional[VQGanVAE] = None,
         cond_image_size = None,
-        resize_image_for_cond_image = False,
         cond_drop_prob = 0.5
     ):
         super().__init__()
@@ -322,7 +322,7 @@ class MaskGit(nn.Module):
 
         self.image_size = image_size
         self.cond_image_size = cond_image_size
-        self.resize_image_for_cond_image = resize_image_for_cond_image
+        self.resize_image_for_cond_image = exists(cond_image_size)
 
         self.cond_drop_prob = cond_drop_prob
 
@@ -330,9 +330,19 @@ class MaskGit(nn.Module):
         self.mask_id = transformer.mask_id
         self.noise_schedule = noise_schedule
 
+    def save(self, path):
+        torch.save(self.state_dict(), path)
+
+    def load(self, path):
+        path = Path(path)
+        assert path.exists()
+        state_dict = torch.load(str(path))
+        self.load_state_dict(state_dict)
+
     def generate(
         self,
         texts: List[str],
+        cond_images: Optional[torch.Tensor] = None,
         fmap_size = None,
         temperature = 1.,
         topk_filter_thres = 0.9,
@@ -356,6 +366,12 @@ class MaskGit(nn.Module):
 
         starting_temperature = temperature
 
+        cond_ids = None
+        if self.resize_image_for_cond_image:
+            assert exists(cond_images), 'conditioning image must be passed in to generate for super res maskgit'
+            with torch.no_grad():
+                _, cond_ids, _ = self.cond_vae.encode(cond_images)
+
         for timestep, steps_until_x0 in zip(torch.linspace(0, 1, timesteps, device = device), reversed(range(timesteps))):
 
             rand_mask_prob = self.noise_schedule(timestep)
@@ -368,6 +384,7 @@ class MaskGit(nn.Module):
             logits = self.transformer.forward_with_cond_scale(
                 ids,
                 texts = texts,
+                conditioning_token_ids = cond_ids,
                 cond_scale = cond_scale
             )
 
@@ -409,7 +426,7 @@ class MaskGit(nn.Module):
 
         if images_or_ids.dtype == torch.float:
             assert exists(self.vae), 'vqgan vae must be passed in if training from raw images'
-            assert all(height_or_width == self.image_size for height_or_width in images_or_ids.shape[-2:])
+            assert all([height_or_width == self.image_size for height_or_width in images_or_ids.shape[-2:]]), 'the image you passed in is not of the correct dimensions'
 
             with torch.no_grad():
                 _, ids, _ = self.vae.encode(images_or_ids)
@@ -435,7 +452,7 @@ class MaskGit(nn.Module):
         if exists(cond_images_or_ids):
             if cond_images_or_ids.dtype == torch.float:
                 assert exists(self.cond_vae), 'cond vqgan vae must be passed in'
-                assert all(height_or_width == self.cond_image_size for height_or_width in cond_images_or_ids[-2:])
+                assert all([height_or_width == self.cond_image_size for height_or_width in cond_images_or_ids.shape[-2:]])
 
                 with torch.no_grad():
                     _, cond_ids, _ = self.cond_vae.encode(cond_images_or_ids)
@@ -477,14 +494,14 @@ class MaskGit(nn.Module):
 class Muse(nn.Module):
     def __init__(
         self,
-        base_maskgit: MaskGit,
-        superres_maskgit: MaskGit
+        base: MaskGit,
+        superres: MaskGit
     ):
         super().__init__()
-        self.base_maskgit = base_maskgit.eval()
+        self.base_maskgit = base.eval()
 
-        assert superres_maskgit.resize_image_for_cond_image
-        self.superres_maskgit = superres_maskgit.eval()
+        assert superres.resize_image_for_cond_image
+        self.superres_maskgit = superres.eval()
 
     @torch.no_grad()
     def forward(
@@ -495,7 +512,7 @@ class Muse(nn.Module):
         timesteps = 18,
         superres_timesteps = None,
         return_lowres = False,
-        return_pil_images = False
+        return_pil_images = True
     ):
         lowres_image = self.base_maskgit.generate(
             texts = texts,
@@ -507,7 +524,7 @@ class Muse(nn.Module):
         superres_image = self.superres_maskgit.generate(
             texts = texts,
             cond_scale = cond_scale,
-            cond_images_or_ids = lowres_image,
+            cond_images = lowres_image,
             temperature = temperature,
             timesteps = default(superres_timesteps, timesteps)
         )
