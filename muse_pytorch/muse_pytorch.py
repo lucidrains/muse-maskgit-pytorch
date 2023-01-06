@@ -190,6 +190,7 @@ class Transformer(nn.Module):
         labels = None,
         ignore_index = 0,
         cond_drop_prob = 0.,
+        conditioning_token_ids: Optional[torch.Tensor] = None,
         texts: Optional[List[str]] = None,
         text_embeds: Optional[torch.Tensor] = None
     ):
@@ -202,9 +203,9 @@ class Transformer(nn.Module):
 
         if exists(texts):
             text_embeds = self.encode_text(texts)
-            text_embeds = self.text_embed_proj(text_embeds)
+            contexts = self.text_embed_proj(text_embeds)
 
-        text_mask = torch.any(text_embeds == 0, dim = -1)
+        context_mask = torch.any(text_embeds == 0, dim = -1)
 
         # classifier free guidance
 
@@ -212,12 +213,19 @@ class Transformer(nn.Module):
             mask = prob_mask_like((batch, 1), 1. - cond_drop_prob)
             text_mask = text_mask & mask
 
+        # concat conditioning image token ids if needed
+
+        if exists(conditioning_token_ids):
+            cond_token_emb = self.token_emb(conditioning_token_ids)
+            contexts = torch.cat((context, cond_token_emb), dim = -2)
+            context_mask = F.pad(context_mask, (0, conditioning_token_ids.shape[-1]), value = True)
+
         # embed tokens
 
         x = self.token_emb(x)
         x = x + self.pos_emb(torch.arange(n, device = device))
 
-        x = self.transformer(x)
+        x = self.transformer(x, context = context, context_mask = context_mask)
 
         if return_embed:
             return x
@@ -281,12 +289,25 @@ class MaskGit(nn.Module):
         transformer: Transformer,
         noise_schedule: Callable = arccosine_schedule,
         vae: Optional[VQGanVAE] = None,
+        cond_vae: Optional[VQGanVAE] = None,
+        cond_image_size = None,
+        resize_image_for_cond_image = False,
         t5_name = DEFAULT_T5_NAME,
         cond_drop_prob = 0.5
     ):
         super().__init__()
-        self.vae = vae.copy_for_eval()
+        self.vae = vae.copy_for_eval() if exists(val) else None
+
+        if exists(cond_vae):
+            self.cond_vae = cond_vae.eval()
+        else:
+            self.cond_vae = self.vae
+
+        assert not (exists(cond_vae) and not exists(cond_image_size)), 'cond_image_size must be specified if conditioning'
+
         self.image_size = image_size
+        self.cond_image_size = cond_image_size
+        self.resize_image_for_cond_image = resize_image_for_cond_image
 
         self.encode_text = partial(t5_encode_text, name = t5_name)
 
@@ -370,6 +391,7 @@ class MaskGit(nn.Module):
         self,
         images_or_ids: torch.Tensor,
         ignore_index = -1,
+        cond_images_or_ids: Optional[torch.Tensor] = None,
         texts: Optional[List[str]] = None,
         text_embeds: Optional[torch.Tensor] = None,
         cond_drop_prob = None
@@ -385,7 +407,27 @@ class MaskGit(nn.Module):
             with torch.no_grad():
                 _, ids, _ = self.vae.encode(images_or_ids)
         else:
+            assert not self.resize_image_for_cond_image, 'you cannot pass in raw image token ids if you want the framework to autoresize image for conditioning super res transformer'
             ids = images_or_ids
+
+        # take care of conditioning image if specified
+
+        if self.resize_image_for_cond_image:
+            cond_images_or_ids = F.interpolate(images_or_ids, self.cond_image_size, mode = 'nearest')
+
+        # tokenize conditional images if needed
+
+        cond_ids = None
+
+        if exists(cond_images_or_ids):
+            if cond_images_or_ids.dtype == torch.float:
+                assert exists(self.cond_vae), 'cond vqgan vae must be passed in'
+                assert all(height_or_width == self.cond_image_size for height_or_width in cond_images_or_ids[-2:])
+
+                with torch.no_grad():
+                    _, cond_ids, _ = self.cond_vae.encode(cond_images_or_ids)
+            else:
+                cond_ids = cond_image_or_ids
 
         # prepare mask
 
@@ -408,6 +450,7 @@ class MaskGit(nn.Module):
             ids,
             texts = texts,
             text_embeds = text_embeds,
+            conditioning_token_ids = cond_ids,
             labels = labels,
             cond_drop_prob = cond_drop_prob,
             ignore_index = ignore_index
