@@ -2,7 +2,11 @@ import torch
 import torch.nn.functional as F
 from torch import nn, einsum
 
+from typing import Callable
+
 from einops import rearrange
+
+from beartype import beartype
 
 # helpers
 
@@ -127,6 +131,8 @@ class TransformerBlocks(nn.Module):
 
         return self.norm(x)
 
+# transformer - it's all we need
+
 class Transformer(nn.Module):
     def __init__(
         self,
@@ -137,7 +143,9 @@ class Transformer(nn.Module):
         **kwargs
     ):
         super().__init__()
-        self.token_emb = nn.Embedding(num_tokens, dim)
+        self.mask_id = num_tokens
+
+        self.token_emb = nn.Embedding(num_tokens + 1, dim)
         self.pos_emb = nn.Embedding(seq_len, dim)
         self.seq_len = seq_len
 
@@ -172,29 +180,85 @@ class Transformer(nn.Module):
         logits = rearrange(logits, 'b n c -> b c n')
         return F.cross_entropy(logits, labels, ignore_index = ignore_index)
 
+# classifier free guidance functions
+
+def uniform(shape, min = 0, max = 1, device = None):
+    return torch.zeros(shape, device = device).float().uniform_(0, 1)
+
+def prob_mask_like(shape, prob, device):
+    if prob == 1:
+        return torch.ones(shape, device = device, dtype = torch.bool)
+    elif prob == 0:
+        return torch.zeros(shape, device = device, dtype = torch.bool)
+    else:
+        return uniform(shape, device = device) < prob
+
+# noise schedules
+
+# in original maskgit paper, they claimed cosine schedule had best results
+# always assumed it was simply cos(t * pi / 2)
+# but this paper had a section that seems to suggest it is (2 / pi) * arccos(x) ?
+# if anyone knows the answer to this, would greatly appreciate assistance!
+
+def cosine_schedule(t):
+    return torch.cos(t * math.pi * 0.5)
+
+def arccosine_schedule(t):
+    return 2 * math.pi * torch.arccos(t)
+
+# main maskgit classes
+
+@beartype
 class BaseMaskGit(nn.Module):
     def __init__(
         self,
-        base_transformer: Transformer
+        transformer: Transformer,
+        noise_schedule: Callable = arccosine_schedule,
     ):
         super().__init__()
-        self.base_transformer = base_transformer
+        self.transformer = transformer
+        self.noise_schedule = noise_schedule
 
     def generate(self):
         raise NotImplementedError
 
-    def forward(self, x):
-        return x
+    def forward(
+        self,
+        ids,
+        ignore_index = -1
+    ):
+        batch, seq_len, device = *ids.shape, ids.device
 
+        rand_time = uniform((batch,), device = device)
+        rand_mask_probs = self.noise_schedule(rand_time)
+        num_token_masked = (seq_len * rand_mask_probs).round().clamp(min = 1)
+
+        batch_randperm = torch.rand_like(ids).argsort(dim = -1)
+        mask = batch_randperm < rearrange(num_token_masked, 'b -> b 1')
+
+        mask_id = self.transformer.mask_id
+
+        x = torch.where(mask, mask_id, ids)
+        labels = torch.where(mask, ids, ignore_index)
+
+        ce_loss = self.transformer(
+            ids,
+            labels = labels,
+            ignore_index = ignore_index
+        )
+
+        return ce_loss
+
+@beartype
 class SuperResMaskGit(nn.Module):
     def __init__(
         self,
         base_maskgit: BaseMaskGit,
-        superres_transformer: Transformer
+        transformer: Transformer
     ):
         super().__init__()
         self.base_maskgit = base_maskgit
-        self.superres_transformer = superres_transformer
+        self.transformer = transformer
 
     def generate(self):
         raise NotImplementedError
