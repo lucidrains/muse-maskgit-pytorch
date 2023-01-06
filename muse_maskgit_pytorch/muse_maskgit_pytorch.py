@@ -346,6 +346,7 @@ class MaskGit(nn.Module):
         fmap_size = None,
         temperature = 1.,
         topk_filter_thres = 0.9,
+        can_remask_prev_masked = False,
         timesteps = 18,  # ideal number of steps is 18 in maskgit paper
         cond_scale = 3,
     ):
@@ -394,14 +395,23 @@ class MaskGit(nn.Module):
 
             pred_ids = gumbel_sample(filtered_logits, temperature = temperature, dim = -1)
 
+            is_mask = ids == self.mask_id
+
             ids = torch.where(
-                ids == self.mask_id,
+                is_mask,
                 pred_ids,
                 ids
             )
 
             scores = 1 - logits.gather(2, pred_ids[..., None])
             scores = rearrange(scores, '... 1 -> ...')
+
+            if not can_remask_prev_masked:
+                # without doing MLM type 15% random or non-masked predictions
+                # non-masked tokens may not get correct logits (scores)
+                # but not sure
+
+                scores = scores.masked_fill(~is_mask, 0.)
 
         # get ids
 
