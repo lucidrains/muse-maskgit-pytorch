@@ -1,3 +1,5 @@
+from functools import partial
+
 import torch
 import torch.nn.functional as F
 from torch import nn, einsum
@@ -9,6 +11,7 @@ from einops import rearrange, repeat
 from beartype import beartype
 
 from muse_pytorch.vqgan_vae import VQGanVAE
+from muse_pytorch.t5 import t5_encode_text, get_encoded_dim, DEFAULT_T5_NAME
 
 # helpers
 
@@ -52,14 +55,11 @@ class Attention(nn.Module):
     def __init__(
         self,
         dim,
-        dim_context = None,
         dim_head = 64,
         heads = 8,
         cross_attend = False
     ):
         super().__init__()
-        dim_context = default(dim_context, dim)
-
         self.scale = dim_head ** -0.5
         self.heads =  heads
         inner_dim = dim_head * heads
@@ -70,7 +70,7 @@ class Attention(nn.Module):
         self.null_kv = nn.Parameter(torch.randn(2, heads, 1, dim_head))
 
         self.to_q = nn.Linear(dim, inner_dim, bias = False)
-        self.to_kv = nn.Linear(dim_context, inner_dim * 2, bias = False)
+        self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
         self.to_out = nn.Linear(inner_dim, dim, bias = False)
 
     def forward(
@@ -120,7 +120,6 @@ class TransformerBlocks(nn.Module):
         *,
         dim,
         depth,
-        dim_context = None,
         dim_head = 64,
         heads = 8,
         ff_mult = 4
@@ -131,7 +130,7 @@ class TransformerBlocks(nn.Module):
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
                 Attention(dim = dim, dim_head = dim_head, heads = heads),
-                Attention(dim = dim, dim_head = dim_head, heads = heads, dim_context = dim_context, cross_attend = True),
+                Attention(dim = dim, dim_head = dim_head, heads = heads, cross_attend = True),
                 FeedForward(dim = dim, mult = ff_mult)
             ]))
 
@@ -170,15 +169,50 @@ class Transformer(nn.Module):
 
         self.to_logits = nn.Linear(dim, num_tokens, bias = False)
 
+    def forward_with_cond_scale(
+        self,
+        *args,
+        cond_scale = 3.,
+        **kwargs
+    ):
+        logits = self.forward(self, *args, cond_drop_prob = 0., **kwargs)
+        if cond_scale == 1:
+            return logits
+
+        null_logits = self.forward(self, *args, cond_drop_prob = 1., **kwargs)
+
+        return null_logits + (logits - null_logits) * cond_scale
+
     def forward(
         self,
         x,
         return_embed = False,
         labels = None,
-        ignore_index = 0
+        ignore_index = 0,
+        texts: Optional[List[str]] = None,
+        text_embeds: Optional[torch.Tensor] = None
     ):
         device, n = x.device, x.shape[1]
         assert n <= self.seq_len
+
+        # prepare texts
+
+        assert exists(texts) ^ exists(text_embeds)
+
+        if exists(texts):
+            text_embeds = self.encode_text(texts)
+            text_embeds = self.text_embed_proj(text_embeds)
+
+        text_mask = torch.any(text_embeds == 0, dim = -1)
+
+        # classifier free guidance
+
+        if self.training and cond_drop_prob > 0.:
+            cond_drop_prob = default(cond_drop_prob, self.cond_drop_prob)
+            mask = prob_mask_like((batch, 1), 1. - cond_drop_prob)
+            text_mask = text_mask & mask
+
+        # embed tokens
 
         x = self.token_emb(x)
         x = x + self.pos_emb(torch.arange(n, device = device))
@@ -246,11 +280,22 @@ class MaskGit(nn.Module):
         image_size,
         transformer: Transformer,
         noise_schedule: Callable = arccosine_schedule,
-        vae: Optional[VQGanVAE] = None
+        vae: Optional[VQGanVAE] = None,
+        t5_name = DEFAULT_T5_NAME,
+        cond_drop_prob = 0.5
     ):
         super().__init__()
         self.vae = vae.copy_for_eval()
         self.image_size = image_size
+
+        self.encode_text = partial(t5_encode_text, name = t5_name)
+
+        dim = transformer.dim
+        text_embed_dim = get_encoded_dim(t5_name)
+
+        self.text_embed_proj = nn.Linear(text_embed_dim, dim, bias = False) if text_embed_dim != dim else nn.Identity() 
+
+        self.cond_drop_prob = cond_drop_prob
 
         self.transformer = transformer
         self.mask_id = transformer.mask_id
@@ -258,17 +303,21 @@ class MaskGit(nn.Module):
 
     def generate(
         self,
+        texts: List[str],
         fmap_size = None,
-        batch_size = 1,
         temperature = 1.,
         topk_thres = 0.9,
-        timesteps = 18  # ideal number of steps is 18 in maskgit paper
+        timesteps = 18,  # ideal number of steps is 18 in maskgit paper
+        cond_scale = 3,
     ):
         fmap_size = default(fmap_size, self.vae.get_encoded_fmap_size(self.image_size))
 
         # begin with all image token ids masked
 
+
         seq_len = fmap_size ** 2
+
+        batch_size = len(texts)
 
         shape = (batch_size, seq_len)
 
@@ -286,7 +335,11 @@ class MaskGit(nn.Module):
 
             ids = ids.scatter(1, masked_indices, self.mask_id)
 
-            logits = self.transformer(ids)
+            logits = self.transformer.forward_with_cond_scale(
+                ids,
+                texts = texts,
+                cond_scale = cond_scale
+            )
 
             filtered_logits = top_k(logits, topk_thres)
 
@@ -316,7 +369,10 @@ class MaskGit(nn.Module):
     def forward(
         self,
         images_or_ids: torch.Tensor,
-        ignore_index = -1
+        ignore_index = -1,
+        texts: Optional[List[str]] = None,
+        text_embeds: Optional[torch.Tensor] = None,
+        cond_drop_prob = None
     ):
         batch, seq_len, device = *ids.shape, ids.device
 
@@ -334,7 +390,7 @@ class MaskGit(nn.Module):
         # prepare mask
 
         rand_time = uniform((batch,), device = device)
-        rand_mask_probs = self.noise_schedule(rand_time)
+        rand_mask_probs = selfself.cond_drop_prob.noise_schedule(rand_time)
         num_token_masked = (seq_len * rand_mask_probs).round().clamp(min = 1)
 
         mask_id = self.mask_id
@@ -350,6 +406,8 @@ class MaskGit(nn.Module):
 
         ce_loss = self.transformer(
             ids,
+            texts = texts,
+            text_embeds = text_embeds,
             labels = labels,
             ignore_index = ignore_index
         )
