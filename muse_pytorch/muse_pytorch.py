@@ -469,10 +469,35 @@ class Muse(nn.Module):
     ):
         super().__init__()
         self.base_maskgit = base_maskgit
+
+        assert superres_maskgit.resize_image_for_cond_image
         self.superres_maskgit = superres_maskgit
 
     def forward(
         self,
-        texts: List[str]
+        texts: List[str],
+        cond_scale = 3.,
+        temperature = 1.,
+        timesteps = 18,
+        superres_timesteps = None,
+        return_lowres = False
     ):
-        return None
+        lowres_image = self.base_maskgit.generate(
+            texts = texts,
+            cond_scale = cond_scale,
+            temperature = temperature,
+            timesteps = timesteps
+        )
+
+        superres_image = self.superres_maskgit.generate(
+            texts = texts,
+            cond_scale = cond_scale,
+            cond_images_or_ids = lowres_image,
+            temperature = temperature,
+            timesteps = default(superres_timesteps, timesteps)
+        )
+        
+        if not return_lowres:
+            return superres_image
+
+        return superres_image, lowres_image
