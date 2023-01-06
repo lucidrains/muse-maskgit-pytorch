@@ -18,6 +18,7 @@ setup(
     'text-to-image'
   ],
   install_requires=[
+    'accelerate',
     'beartype',
     'einops>=0.6',
     'ema-pytorch',
