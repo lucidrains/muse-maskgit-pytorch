@@ -189,6 +189,7 @@ class Transformer(nn.Module):
         return_embed = False,
         labels = None,
         ignore_index = 0,
+        cond_drop_prob = 0.,
         texts: Optional[List[str]] = None,
         text_embeds: Optional[torch.Tensor] = None
     ):
@@ -208,7 +209,6 @@ class Transformer(nn.Module):
         # classifier free guidance
 
         if self.training and cond_drop_prob > 0.:
-            cond_drop_prob = default(cond_drop_prob, self.cond_drop_prob)
             mask = prob_mask_like((batch, 1), 1. - cond_drop_prob)
             text_mask = text_mask & mask
 
@@ -374,7 +374,7 @@ class MaskGit(nn.Module):
         text_embeds: Optional[torch.Tensor] = None,
         cond_drop_prob = None
     ):
-        batch, seq_len, device = *ids.shape, ids.device
+        batch, seq_len, device, cond_drop_prob = *ids.shape, ids.device, default(cond_drop_prob, self.cond_drop_prob)
 
         # tokenize if needed
 
@@ -390,7 +390,7 @@ class MaskGit(nn.Module):
         # prepare mask
 
         rand_time = uniform((batch,), device = device)
-        rand_mask_probs = selfself.cond_drop_prob.noise_schedule(rand_time)
+        rand_mask_probs = self.noise_schedule(rand_time)
         num_token_masked = (seq_len * rand_mask_probs).round().clamp(min = 1)
 
         mask_id = self.mask_id
@@ -409,6 +409,7 @@ class MaskGit(nn.Module):
             texts = texts,
             text_embeds = text_embeds,
             labels = labels,
+            cond_drop_prob = cond_drop_prob,
             ignore_index = ignore_index
         )
 
