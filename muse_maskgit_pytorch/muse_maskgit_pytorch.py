@@ -277,9 +277,9 @@ def gumbel_sample(t, temperature = 1., dim = -1):
 
 def top_k(logits, thres = 0.9):
     k = math.ceil((1 - thres) * logits.shape[-1])
-    val, ind = torch.topk(logits, k)
+    val, ind = logits.topk(k, dim = -1)
     probs = torch.full_like(logits, float('-inf'))
-    probs.scatter_(1, ind, val)
+    probs.scatter_(2, ind, val)
     return probs
 
 # noise schedules
@@ -335,7 +335,7 @@ class MaskGit(nn.Module):
         texts: List[str],
         fmap_size = None,
         temperature = 1.,
-        topk_thres = 0.9,
+        topk_filter_thres = 0.9,
         timesteps = 18,  # ideal number of steps is 18 in maskgit paper
         cond_scale = 3,
     ):
@@ -371,9 +371,11 @@ class MaskGit(nn.Module):
                 cond_scale = cond_scale
             )
 
+            filtered_logits = top_k(logits, topk_filter_thres)
+
             temperature = starting_temperature * (steps_until_x0 / timesteps) # temperature is annealed
 
-            pred_ids = gumbel_sample(logits, temperature = temperature, dim = -1)
+            pred_ids = gumbel_sample(filtered_logits, temperature = temperature, dim = -1)
 
             ids = torch.where(
                 ids == self.mask_id,

@@ -39,8 +39,7 @@ Then pass the trained `VQGanVAE` and a `Transformer` to `MaskGit`
 import torch
 from muse_maskgit_pytorch import VQGanVAE, MaskGit, Transformer
 
-# first instantiate your ViT VQGan VAE
-# a VQGan VAE made of transformers
+# first instantiate your vae
 
 vae = VQGanVAE(
     dim = 256,
@@ -49,7 +48,7 @@ vae = VQGanVAE(
 
 vae.load('/path/to/vae.pt') # you will want to load the exponentially moving averaged VAE
 
-# then you plug the VqGan VAE into your MaskGit as so
+# then you plug the vae and transformer into your MaskGit as so
 
 # (1) create your transformer / attention network
 
