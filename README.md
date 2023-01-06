@@ -107,6 +107,8 @@ images.shape # (3, 3, 256, 256)
 
 To train the super-resolution maskgit requires you to change 1 field on `MaskGit` instantiation (you will need to now pass in the `cond_image_size`, as the previous image size being conditioned on)
 
+Optionally, you can pass in a different `VAE` as `cond_vae` for the conditioning low-resolution image. By default it will use the `vae` for both tokenizing the super and low resoluted images.
+
 ```python
 import torch
 import torch.nn.functional as F
