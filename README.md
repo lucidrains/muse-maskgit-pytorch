@@ -4,6 +4,10 @@
 
 Implementation of <a href="https://muse-model.github.io/">Muse</a>: Text-to-Image Generation via Masked Generative Transformers, in Pytorch
 
+## Todo
+
+- [ ] separate cond_images_or_ids, it is not done right
+
 ## Citations
 
 ```bibtex
