@@ -4,7 +4,7 @@ from torch import nn, einsum
 
 from typing import Callable, Optional, List
 
-from einops import rearrange
+from einops import rearrange, repeat
 
 from beartype import beartype
 
@@ -64,6 +64,8 @@ class Attention(nn.Module):
         self.cross_attend = cross_attend
         self.norm = LayerNorm(dim)
 
+        self.null_kv = nn.Parameter(torch.randn(2, heads, 1, dim_head))
+
         self.to_q = nn.Linear(dim, inner_dim, bias = False)
         self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
         self.to_out = nn.Linear(inner_dim, dim, bias = False)
@@ -88,10 +90,18 @@ class Attention(nn.Module):
 
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), (q, k, v))
 
+        nk, nv = self.null_kv
+        nk, nv = map(lambda t: repeat(t, 'h 1 d -> b h 1 d', b = x.shape[0]))
+
+        k = torch.cat((nk, k), dim = -2)
+        v = torch.cat((nv, v), dim = -2)
+
         sim = einsum('b h i d, b h j d -> b h i j', q, k)
 
         if exists(context_mask):
             context_mask = rearrange(context_mask, 'b j -> b 1 1 j')
+            context_mask = F.pad(context_mask, (1, 0), value = True)
+
             mask_value = -torch.finfo(sim.dtype).max
             sim = sim.masked_fill(~context_mask, mask_value)
 
