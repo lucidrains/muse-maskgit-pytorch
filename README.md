@@ -7,7 +7,7 @@ Implementation of <a href="https://muse-model.github.io/">Muse</a>: Text-to-Imag
 ## Install
 
 ```bash
-$ pip install muse-pytorch
+$ pip install muse-maskgit-pytorch
 ```
 
 ## Usage
@@ -16,7 +16,7 @@ First train your VAE - `VQGanVAE`
 
 ```python
 import torch
-from muse_pytorch import VQGanVAE
+from muse_maskgit_pytorch import VQGanVAE
 
 vae = VQGanVAE(
     dim = 256,
@@ -37,7 +37,7 @@ Then pass the trained `VQGanVAE` and a `Transformer` to `MaskGit`
 
 ```python
 import torch
-from muse_pytorch import VQGanVAE, MaskGit, Transformer
+from muse_maskgit_pytorch import VQGanVAE, MaskGit, Transformer
 
 # first instantiate your ViT VQGan VAE
 # a VQGan VAE made of transformers

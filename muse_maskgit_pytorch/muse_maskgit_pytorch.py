@@ -13,8 +13,8 @@ from einops import rearrange, repeat
 
 from beartype import beartype
 
-from muse_pytorch.vqgan_vae import VQGanVAE
-from muse_pytorch.t5 import t5_encode_text, get_encoded_dim, DEFAULT_T5_NAME
+from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
+from muse_maskgit_pytorch.t5 import t5_encode_text, get_encoded_dim, DEFAULT_T5_NAME
 
 # helpers
 
