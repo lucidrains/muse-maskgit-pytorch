@@ -468,11 +468,12 @@ class Muse(nn.Module):
         superres_maskgit: MaskGit
     ):
         super().__init__()
-        self.base_maskgit = base_maskgit
+        self.base_maskgit = base_maskgit.eval()
 
         assert superres_maskgit.resize_image_for_cond_image
-        self.superres_maskgit = superres_maskgit
+        self.superres_maskgit = superres_maskgit.eval()
 
+    @torch.no_grad()
     def forward(
         self,
         texts: List[str],
