@@ -2,11 +2,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn, einsum
 
-from typing import Callable
+from typing import Callable, Optional, List
 
 from einops import rearrange
 
 from beartype import beartype
+
+from muse_pytorch.vqgan_vae import VQGanVAE
 
 # helpers
 
@@ -209,13 +211,15 @@ def arccosine_schedule(t):
 # main maskgit classes
 
 @beartype
-class BaseMaskGit(nn.Module):
+class MaskGit(nn.Module):
     def __init__(
         self,
         transformer: Transformer,
         noise_schedule: Callable = arccosine_schedule,
+        vae: Optional[VQGanVAE] = None
     ):
         super().__init__()
+        self.vae = vae
         self.transformer = transformer
         self.noise_schedule = noise_schedule
 
@@ -249,19 +253,21 @@ class BaseMaskGit(nn.Module):
 
         return ce_loss
 
+# final Muse class
+
 @beartype
-class SuperResMaskGit(nn.Module):
+class Muse(nn.Module):
     def __init__(
         self,
-        base_maskgit: BaseMaskGit,
-        transformer: Transformer
+        base_maskgit: MaskGit,
+        superres_maskgit: MaskGit
     ):
         super().__init__()
         self.base_maskgit = base_maskgit
-        self.transformer = transformer
+        self.superres_maskgit = superres_maskgit
 
-    def generate(self):
-        raise NotImplementedError
-
-    def forward(self, x):
-        return x
+    def forward(
+        self,
+        texts: List[str]
+    ):
+        return None
