@@ -1,3 +1,4 @@
+from pathlib import Path
 import copy
 import math
 from math import sqrt
@@ -388,6 +389,15 @@ class VQGanVAE(nn.Module):
     def load_state_dict(self, *args, **kwargs):
         return super().load_state_dict(*args, **kwargs)
 
+    def save(self, path):
+        torch.save(self.state_dict(), path)
+
+    def load(self, path):
+        path = Path(path)
+        assert path.exists()
+        state_dict = torch.load(str(path))
+        self.load_state_dict(state_dict)
+
     @property
     def codebook(self):
         return self.vq.codebook
@@ -397,7 +407,13 @@ class VQGanVAE(nn.Module):
         fmap, indices, commit_loss = self.vq(fmap)
         return fmap, indices, commit_loss
 
-    def decode(self, fmap, return_indices_and_loss = False):
+    def decode_from_ids(self, ids):
+        codes = self.codebook[ids]
+        fmap = self.vq.project_out(codes)
+        fmap = rearrange(fmap, 'b h w c -> b c h w')
+        return self.decode(fmap)
+
+    def decode(self, fmap):
         return self.enc_dec.decode(fmap)
 
     def forward(

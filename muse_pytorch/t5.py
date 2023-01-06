@@ -78,11 +78,10 @@ def t5_encode_text(texts, name = DEFAULT_T5_NAME, output_device = None):
         encoded_text = output.last_hidden_state.detach()
 
     attn_mask = attn_mask.bool()
+    encoded_text = encoded_text.masked_fill(attn_mask[..., None], 0.)
 
     if not exists(output_device):
-        return encoded_text, attn_mask
+        return encoded_text
 
     encoded_text.to(output_device)
-    attn_mask.to(output_device)
-
-    return encoded_text, attn_mask
+    return encoded_text

@@ -1,8 +1,11 @@
+import math
 from functools import partial
 
 import torch
 import torch.nn.functional as F
 from torch import nn, einsum
+
+import torchvision.transforms as T
 
 from typing import Callable, Optional, List
 
@@ -155,6 +158,7 @@ class Transformer(nn.Module):
         num_tokens,
         dim,
         seq_len,
+        t5_name = DEFAULT_T5_NAME,
         **kwargs
     ):
         super().__init__()
@@ -164,10 +168,18 @@ class Transformer(nn.Module):
         self.pos_emb = nn.Embedding(seq_len, dim)
         self.seq_len = seq_len
 
-        self.transformer = TransformerBlocks(dim = dim, **kwargs)
+        self.transformer_blocks = TransformerBlocks(dim = dim, **kwargs)
         self.norm = LayerNorm(dim)
 
         self.to_logits = nn.Linear(dim, num_tokens, bias = False)
+
+        # text conditioning
+
+        self.encode_text = partial(t5_encode_text, name = t5_name)
+
+        text_embed_dim = get_encoded_dim(t5_name)
+
+        self.text_embed_proj = nn.Linear(text_embed_dim, dim, bias = False) if text_embed_dim != dim else nn.Identity() 
 
     def forward_with_cond_scale(
         self,
@@ -175,11 +187,11 @@ class Transformer(nn.Module):
         cond_scale = 3.,
         **kwargs
     ):
-        logits = self.forward(self, *args, cond_drop_prob = 0., **kwargs)
+        logits = self.forward(*args, cond_drop_prob = 0., **kwargs)
         if cond_scale == 1:
             return logits
 
-        null_logits = self.forward(self, *args, cond_drop_prob = 1., **kwargs)
+        null_logits = self.forward(*args, cond_drop_prob = 1., **kwargs)
 
         return null_logits + (logits - null_logits) * cond_scale
 
@@ -194,7 +206,7 @@ class Transformer(nn.Module):
         texts: Optional[List[str]] = None,
         text_embeds: Optional[torch.Tensor] = None
     ):
-        device, n = x.device, x.shape[1]
+        device, b, n = x.device, *x.shape
         assert n <= self.seq_len
 
         # prepare texts
@@ -203,21 +215,21 @@ class Transformer(nn.Module):
 
         if exists(texts):
             text_embeds = self.encode_text(texts)
-            contexts = self.text_embed_proj(text_embeds)
+            context = self.text_embed_proj(text_embeds)
 
-        context_mask = torch.any(text_embeds == 0, dim = -1)
+        context_mask = (text_embeds != 0).any(dim = -1)
 
         # classifier free guidance
 
         if self.training and cond_drop_prob > 0.:
-            mask = prob_mask_like((batch, 1), 1. - cond_drop_prob)
-            text_mask = text_mask & mask
+            mask = prob_mask_like((b, 1), 1. - cond_drop_prob, device)
+            context_mask = context_mask & mask
 
         # concat conditioning image token ids if needed
 
         if exists(conditioning_token_ids):
             cond_token_emb = self.token_emb(conditioning_token_ids)
-            contexts = torch.cat((context, cond_token_emb), dim = -2)
+            context = torch.cat((context, cond_token_emb), dim = -2)
             context_mask = F.pad(context_mask, (0, conditioning_token_ids.shape[-1]), value = True)
 
         # embed tokens
@@ -225,7 +237,7 @@ class Transformer(nn.Module):
         x = self.token_emb(x)
         x = x + self.pos_emb(torch.arange(n, device = device))
 
-        x = self.transformer(x, context = context, context_mask = context_mask)
+        x = self.transformer_blocks(x, context = context, context_mask = context_mask)
 
         if return_embed:
             return x
@@ -243,7 +255,7 @@ class Transformer(nn.Module):
 def uniform(shape, min = 0, max = 1, device = None):
     return torch.zeros(shape, device = device).float().uniform_(0, 1)
 
-def prob_mask_like(shape, prob, device):
+def prob_mask_like(shape, prob, device = None):
     if prob == 1:
         return torch.ones(shape, device = device, dtype = torch.bool)
     elif prob == 0:
@@ -252,6 +264,9 @@ def prob_mask_like(shape, prob, device):
         return uniform(shape, device = device) < prob
 
 # sampling helpers
+
+def log(t, eps = 1e-20):
+    return torch.log(t.clamp(min = eps))
 
 def gumbel_noise(t):
     noise = torch.zeros_like(t).uniform_(0, 1)
@@ -264,7 +279,8 @@ def top_k(logits, thres = 0.9):
     k = math.ceil((1 - thres) * logits.shape[-1])
     val, ind = torch.topk(logits, k)
     probs = torch.full_like(logits, float('-inf'))
-    return probs.scatter(1, ind, val)
+    probs.scatter_(1, ind, val)
+    return probs
 
 # noise schedules
 
@@ -277,7 +293,7 @@ def cosine_schedule(t):
     return torch.cos(t * math.pi * 0.5)
 
 def arccosine_schedule(t):
-    return 2 * math.pi * torch.arccos(t)
+    return 2 / math.pi * torch.arccos(t)
 
 # main maskgit classes
 
@@ -292,11 +308,10 @@ class MaskGit(nn.Module):
         cond_vae: Optional[VQGanVAE] = None,
         cond_image_size = None,
         resize_image_for_cond_image = False,
-        t5_name = DEFAULT_T5_NAME,
         cond_drop_prob = 0.5
     ):
         super().__init__()
-        self.vae = vae.copy_for_eval() if exists(val) else None
+        self.vae = vae.copy_for_eval() if exists(vae) else None
 
         if exists(cond_vae):
             self.cond_vae = cond_vae.eval()
@@ -308,13 +323,6 @@ class MaskGit(nn.Module):
         self.image_size = image_size
         self.cond_image_size = cond_image_size
         self.resize_image_for_cond_image = resize_image_for_cond_image
-
-        self.encode_text = partial(t5_encode_text, name = t5_name)
-
-        dim = transformer.dim
-        text_embed_dim = get_encoded_dim(t5_name)
-
-        self.text_embed_proj = nn.Linear(text_embed_dim, dim, bias = False) if text_embed_dim != dim else nn.Identity() 
 
         self.cond_drop_prob = cond_drop_prob
 
@@ -335,6 +343,7 @@ class MaskGit(nn.Module):
 
         # begin with all image token ids masked
 
+        device = next(self.parameters()).device
 
         seq_len = fmap_size ** 2
 
@@ -342,15 +351,15 @@ class MaskGit(nn.Module):
 
         shape = (batch_size, seq_len)
 
-        ids = torch.full(shape, self.mask_id, dtype = torch.long)
-        scores = torch.zeros(shape, dtype = torch.float32)
+        ids = torch.full(shape, self.mask_id, dtype = torch.long, device = device)
+        scores = torch.zeros(shape, dtype = torch.float32, device = device)
 
         starting_temperature = temperature
 
-        for timestep, steps_until_x0 in zip(torch.linspace(0, 1, timesteps), reversed(range(self.steps))):
+        for timestep, steps_until_x0 in zip(torch.linspace(0, 1, timesteps, device = device), reversed(range(timesteps))):
 
             rand_mask_prob = self.noise_schedule(timestep)
-            num_token_masked = max(rand_mask_prob.item(), 1)
+            num_token_masked = max(int((rand_mask_prob * seq_len).item()), 1)
 
             masked_indices = scores.topk(num_token_masked, dim = -1).indices
 
@@ -362,11 +371,9 @@ class MaskGit(nn.Module):
                 cond_scale = cond_scale
             )
 
-            filtered_logits = top_k(logits, topk_thres)
+            temperature = starting_temperature * (steps_until_x0 / timesteps) # temperature is annealed
 
-            temperature = starting_temperature * (steps_until_x0 / self.steps) # temperature is annealed
-
-            pred_ids = gumbel_sample(filtered_logits, temperature = temperature, dim = -1)
+            pred_ids = gumbel_sample(logits, temperature = temperature, dim = -1)
 
             ids = torch.where(
                 ids == self.mask_id,
@@ -374,17 +381,17 @@ class MaskGit(nn.Module):
                 ids
             )
 
-            scores = logits.gather(2, pred_ids)
+            scores = 1 - logits.gather(2, pred_ids[..., None])
+            scores = rearrange(scores, '... 1 -> ...')
 
         # get ids
 
-        ids = rearrange(ids, 'b (i j), -> b i j', i = fmap_size, j = fmap_size)
+        ids = rearrange(ids, 'b (i j) -> b i j', i = fmap_size, j = fmap_size)
 
         if not exists(self.vae):
             return ids
 
-        codes = self.vae.codebook[ids]
-        images = self.vae.decode(codes)
+        images = self.vae.decode_from_ids(ids)
         return images
 
     def forward(
@@ -396,8 +403,6 @@ class MaskGit(nn.Module):
         text_embeds: Optional[torch.Tensor] = None,
         cond_drop_prob = None
     ):
-        batch, seq_len, device, cond_drop_prob = *ids.shape, ids.device, default(cond_drop_prob, self.cond_drop_prob)
-
         # tokenize if needed
 
         if images_or_ids.dtype == torch.float:
@@ -414,6 +419,12 @@ class MaskGit(nn.Module):
 
         if self.resize_image_for_cond_image:
             cond_images_or_ids = F.interpolate(images_or_ids, self.cond_image_size, mode = 'nearest')
+
+        # get some basic variables
+
+        ids = rearrange(ids, 'b ... -> b (...)')
+
+        batch, seq_len, device, cond_drop_prob = *ids.shape, ids.device, default(cond_drop_prob, self.cond_drop_prob)
 
         # tokenize conditional images if needed
 
@@ -436,7 +447,7 @@ class MaskGit(nn.Module):
         num_token_masked = (seq_len * rand_mask_probs).round().clamp(min = 1)
 
         mask_id = self.mask_id
-        batch_randperm = torch.rand_like(ids).argsort(dim = -1)
+        batch_randperm = torch.rand((batch, seq_len), device = device).argsort(dim = -1)
         mask = batch_randperm < rearrange(num_token_masked, 'b -> b 1')
 
         mask_id = self.transformer.mask_id
@@ -481,7 +492,8 @@ class Muse(nn.Module):
         temperature = 1.,
         timesteps = 18,
         superres_timesteps = None,
-        return_lowres = False
+        return_lowres = False,
+        return_pil_images = False
     ):
         lowres_image = self.base_maskgit.generate(
             texts = texts,
@@ -498,6 +510,10 @@ class Muse(nn.Module):
             timesteps = default(superres_timesteps, timesteps)
         )
         
+        if return_pil_images:
+            lowres_image = list(map(T.ToPILImage(), lowres_image))
+            superres_image = list(map(T.ToPILImage(), superres_image))            
+
         if not return_lowres:
             return superres_image
 
