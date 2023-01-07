@@ -216,7 +216,7 @@ images # List[PIL.Image.Image]
 
 - <a href="https://stability.ai/">StabilityAI</a> for the sponsorship, as well as my other sponsors, for affording me the independence to open source artificial intelligence.
 
-- <a href="https://huggingface.co/">🤗 Huggingface</a> for the transformers and accelerate library, both which are wonderful
+- <a href="https://huggingface.co/">🤗 Hugging Face</a> for the transformers and accelerate library, both which are wonderful
 
 ## Todo
 
