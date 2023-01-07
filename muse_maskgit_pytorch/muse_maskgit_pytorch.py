@@ -164,6 +164,7 @@ class Transformer(nn.Module):
         super().__init__()
         self.mask_id = num_tokens
 
+        self.num_tokens = num_tokens
         self.token_emb = nn.Embedding(num_tokens + 1, dim)
         self.pos_emb = nn.Embedding(seq_len, dim)
         self.seq_len = seq_len
@@ -327,6 +328,8 @@ class MaskGit(nn.Module):
         self.cond_drop_prob = cond_drop_prob
 
         self.transformer = transformer
+        assert self.vae.codebook_size == self.cond_vae.codebook_size == transformer.num_tokens, 'transformer num_tokens must be set to be equal to the vae codebook size'
+
         self.mask_id = transformer.mask_id
         self.noise_schedule = noise_schedule
 
