@@ -286,16 +286,8 @@ def top_k(logits, thres = 0.9):
 
 # noise schedules
 
-# in original maskgit paper, they claimed cosine schedule had best results
-# always assumed it was simply cos(t * pi / 2)
-# but this paper had a section that seems to suggest it is (2 / pi) * arccos(x) ?
-# if anyone knows the answer to this, would greatly appreciate assistance!
-
 def cosine_schedule(t):
     return torch.cos(t * math.pi * 0.5)
-
-def arccosine_schedule(t):
-    return 2 / math.pi * torch.arccos(t)
 
 # main maskgit classes
 
@@ -305,7 +297,7 @@ class MaskGit(nn.Module):
         self,
         image_size,
         transformer: Transformer,
-        noise_schedule: Callable = arccosine_schedule,
+        noise_schedule: Callable = cosine_schedule,
         vae: Optional[VQGanVAE] = None,
         cond_vae: Optional[VQGanVAE] = None,
         cond_image_size = None,
