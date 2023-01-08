@@ -224,6 +224,7 @@ images # List[PIL.Image.Image]
 
 - [ ] separate cond_images_or_ids, it is not done right
 - [ ] hook up accelerate code
+- [ ] combine with token critic paper, already implemented at <a href="https://github.com/lucidrains/phenaki-pytorch">Phenaki</a>
 
 ## Citations
 
