@@ -42,15 +42,15 @@ def eval_decorator(fn):
 def remove_vgg(fn):
     @wraps(fn)
     def inner(self, *args, **kwargs):
-        has_vgg = hasattr(self, 'vgg')
+        has_vgg = hasattr(self, '_vgg')
         if has_vgg:
-            vgg = self.vgg
-            delattr(self, 'vgg')
+            vgg = self._vgg
+            delattr(self, '_vgg')
 
         out = fn(self, *args, **kwargs)
 
         if has_vgg:
-            self.vgg = vgg
+            self._vgg = vgg
 
         return out
     return inner
@@ -337,7 +337,7 @@ class VQGanVAE(nn.Module):
 
         # turn off GAN and perceptual loss if grayscale
 
-        self.vgg = None
+        self._vgg = None
         self.discr = None
         self.use_vgg_and_gan = use_vgg_and_gan
 
@@ -347,10 +347,7 @@ class VQGanVAE(nn.Module):
         # preceptual loss
 
         if exists(vgg):
-            self.vgg = vgg
-        else:
-            self.vgg = torchvision.models.vgg16(pretrained = True)
-            self.vgg.classifier = nn.Sequential(*self.vgg.classifier[:-2])
+            self._vgg = vgg
 
         # gan related losses
 
@@ -362,6 +359,20 @@ class VQGanVAE(nn.Module):
 
         self.discr_loss = hinge_discr_loss if use_hinge_loss else bce_discr_loss
         self.gen_loss = hinge_gen_loss if use_hinge_loss else bce_gen_loss
+
+    @property
+    def device(self):
+        return next(self.parameters()).device
+
+    @property
+    def vgg(self):
+        if exists(self._vgg):
+            return self._vgg
+
+        vgg = torchvision.models.vgg16(pretrained = True)
+        vgg.classifier = nn.Sequential(*vgg.classifier[:-2])
+        self._vgg = vgg.to(self.device)
+        return vgg
 
     @property
     def encoded_dim(self):
@@ -376,7 +387,7 @@ class VQGanVAE(nn.Module):
 
         if vae_copy.use_vgg_and_gan:
             del vae_copy.discr
-            del vae_copy.vgg
+            del vae_copy._vgg
 
         vae_copy.eval()
         return vae_copy.to(device)
