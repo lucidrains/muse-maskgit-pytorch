@@ -218,7 +218,8 @@ class Transformer(nn.Module):
 
         if exists(texts):
             text_embeds = self.encode_text(texts)
-            context = self.text_embed_proj(text_embeds)
+
+        context = self.text_embed_proj(text_embeds)
 
         context_mask = (text_embeds != 0).any(dim = -1)
 
@@ -365,6 +366,9 @@ class MaskGit(nn.Module):
         starting_temperature = temperature
 
         cond_ids = None
+
+        text_embeds = self.transformer.encode_text(texts)
+
         if self.resize_image_for_cond_image:
             assert exists(cond_images), 'conditioning image must be passed in to generate for super res maskgit'
             with torch.no_grad():
@@ -381,7 +385,7 @@ class MaskGit(nn.Module):
 
             logits = self.transformer.forward_with_cond_scale(
                 ids,
-                texts = texts,
+                text_embeds = text_embeds,
                 conditioning_token_ids = cond_ids,
                 cond_scale = cond_scale
             )
