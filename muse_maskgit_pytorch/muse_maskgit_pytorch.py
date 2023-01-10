@@ -16,6 +16,8 @@ from beartype import beartype
 from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
 from muse_maskgit_pytorch.t5 import t5_encode_text, get_encoded_dim, DEFAULT_T5_NAME
 
+from tqdm.auto import tqdm
+
 # helpers
 
 def exists(val):
@@ -368,7 +370,7 @@ class MaskGit(nn.Module):
             with torch.no_grad():
                 _, cond_ids, _ = self.cond_vae.encode(cond_images)
 
-        for timestep, steps_until_x0 in zip(torch.linspace(0, 1, timesteps, device = device), reversed(range(timesteps))):
+        for timestep, steps_until_x0 in tqdm(zip(torch.linspace(0, 1, timesteps, device = device), reversed(range(timesteps))), total = timesteps):
 
             rand_mask_prob = self.noise_schedule(timestep)
             num_token_masked = max(int((rand_mask_prob * seq_len).item()), 1)
