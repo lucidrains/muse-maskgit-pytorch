@@ -225,9 +225,10 @@ images # List[PIL.Image.Image]
 ## Todo
 
 - [x] test end-to-end
+- [x] separate cond_images_or_ids, it is not done right
+- [x] add training code for vae
 
-- [ ] separate cond_images_or_ids, it is not done right
-- [ ] hook up accelerate code
+- [ ] hook up accelerate training code for maskgit
 - [ ] combine with token critic paper, already implemented at <a href="https://github.com/lucidrains/phenaki-pytorch">Phenaki</a>
 
 ## Citations

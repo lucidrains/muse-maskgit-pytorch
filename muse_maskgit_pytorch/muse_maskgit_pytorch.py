@@ -452,7 +452,8 @@ class MaskGit(nn.Module):
         self,
         images_or_ids: torch.Tensor,
         ignore_index = -1,
-        cond_images_or_ids: Optional[torch.Tensor] = None,
+        cond_images: Optional[torch.Tensor] = None,
+        cond_token_ids: Optional[torch.Tensor] = None,
         texts: Optional[List[str]] = None,
         text_embeds: Optional[torch.Tensor] = None,
         cond_drop_prob = None
@@ -482,17 +483,14 @@ class MaskGit(nn.Module):
 
         # tokenize conditional images if needed
 
-        cond_ids = None
+        assert not (exists(cond_images) and exists(cond_token_ids)), 'if conditioning on low resolution, cannot pass in both images and token ids'
 
-        if exists(cond_images_or_ids):
-            if cond_images_or_ids.dtype == torch.float:
-                assert exists(self.cond_vae), 'cond vqgan vae must be passed in'
-                assert all([height_or_width == self.cond_image_size for height_or_width in cond_images_or_ids.shape[-2:]])
+        if exists(cond_images):
+            assert exists(self.cond_vae), 'cond vqgan vae must be passed in'
+            assert all([height_or_width == self.cond_image_size for height_or_width in cond_images.shape[-2:]])
 
-                with torch.no_grad():
-                    _, cond_ids, _ = self.cond_vae.encode(cond_images_or_ids)
-            else:
-                cond_ids = cond_image_or_ids
+            with torch.no_grad():
+                _, cond_token_ids, _ = self.cond_vae.encode(cond_images)
 
         # prepare mask
 
@@ -515,7 +513,7 @@ class MaskGit(nn.Module):
             ids,
             texts = texts,
             text_embeds = text_embeds,
-            conditioning_token_ids = cond_ids,
+            conditioning_token_ids = cond_token_ids,
             labels = labels,
             cond_drop_prob = cond_drop_prob,
             ignore_index = ignore_index
