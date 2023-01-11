@@ -22,7 +22,8 @@ from accelerate import Accelerator
 
 from ema_pytorch import EMA
 
-from PIL import Image
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 # helper functions
 
