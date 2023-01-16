@@ -3,6 +3,9 @@ import torch
 import transformers
 from transformers import T5Tokenizer, T5EncoderModel, T5Config
 
+from beartype import beartype
+from typing import List, Union
+
 transformers.logging.set_verbosity_error()
 
 def exists(val):
@@ -53,7 +56,15 @@ def get_encoded_dim(name):
 
 # encoding text
 
-def t5_encode_text(texts, name = DEFAULT_T5_NAME, output_device = None):
+@beartype
+def t5_encode_text(
+    texts: Union[str, List[str]],
+    name = DEFAULT_T5_NAME,
+    output_device = None
+):
+    if isinstance(texts, str):
+        texts = [texts]
+
     t5, tokenizer = get_model_and_tokenizer(name)
 
     if torch.cuda.is_available():

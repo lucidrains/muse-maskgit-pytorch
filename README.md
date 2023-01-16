@@ -227,9 +227,9 @@ images # List[PIL.Image.Image]
 - [x] test end-to-end
 - [x] separate cond_images_or_ids, it is not done right
 - [x] add training code for vae
+- [x] add optional self-conditioning on embeddings
 
 - [ ] hook up accelerate training code for maskgit
-- [ ] add optional self-conditioning on embeddings
 - [ ] combine with token critic paper, already implemented at <a href="https://github.com/lucidrains/phenaki-pytorch">Phenaki</a>
 
 ## Citations
@@ -239,5 +239,26 @@ images # List[PIL.Image.Image]
     title   = {Muse: Text-To-Image Generation via Masked Generative Transformers},
     author  = {Huiwen Chang and Han Zhang and Jarred Barber and AJ Maschinot and Jos{\'e} Lezama and Lu Jiang and Ming-Hsuan Yang and Kevin P. Murphy and William T. Freeman and Michael Rubinstein and Yuanzhen Li and Dilip Krishnan},
     year    = {2023}
+}
+```
+
+```bibtex
+@article{Chen2022AnalogBG,
+    title   = {Analog Bits: Generating Discrete Data using Diffusion Models with Self-Conditioning},
+    author  = {Ting Chen and Ruixiang Zhang and Geo rey E. Hinton},
+    journal = {ArXiv},
+    year    = {2022},
+    volume  = {abs/2208.04202}
+}
+```
+
+```bibtex
+@misc{jabri2022scalable,
+    title   = {Scalable Adaptive Computation for Iterative Generation},
+    author  = {Allan Jabri and David Fleet and Ting Chen},
+    year    = {2022},
+    eprint  = {2212.11972},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.LG}
 }
 ```
