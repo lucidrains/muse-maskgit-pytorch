@@ -1,4 +1,5 @@
 import math
+from random import random
 from functools import partial
 
 import torch
@@ -25,6 +26,15 @@ def exists(val):
 
 def default(val, d):
     return val if exists(val) else d
+
+def eval_decorator(fn):
+    def inner(model, *args, **kwargs):
+        was_training = model.training
+        model.eval()
+        out = fn(model, *args, **kwargs)
+        model.train(was_training)
+        return out
+    return inner
 
 # classes
 
@@ -161,6 +171,7 @@ class Transformer(nn.Module):
         dim,
         seq_len,
         t5_name = DEFAULT_T5_NAME,
+        self_cond = False,
         **kwargs
     ):
         super().__init__()
@@ -184,31 +195,49 @@ class Transformer(nn.Module):
 
         self.text_embed_proj = nn.Linear(text_embed_dim, dim, bias = False) if text_embed_dim != dim else nn.Identity() 
 
+        # optional self conditioning
+
+        self.self_cond = self_cond
+        self.self_cond_to_init_embed = FeedForward(dim)
+
     def forward_with_cond_scale(
         self,
         *args,
         cond_scale = 3.,
+        return_embed = False,
         **kwargs
     ):
-        logits = self.forward(*args, cond_drop_prob = 0., **kwargs)
         if cond_scale == 1:
-            return logits
+            return self.forward(*args, return_embed = return_embed, cond_drop_prob = 0., **kwargs)
+
+        logits, embed = self.forward(*args, return_embed = True, cond_drop_prob = 0., **kwargs)
 
         null_logits = self.forward(*args, cond_drop_prob = 1., **kwargs)
 
-        return null_logits + (logits - null_logits) * cond_scale
+        scaled_logits = null_logits + (logits - null_logits) * cond_scale
+
+        if return_embed:
+            return scaled_logits, embed
+
+        return scaled_logits
 
     def forward_with_neg_prompt(
         self,
         text_embed: torch.Tensor,
         neg_text_embed: torch.Tensor,
         cond_scale = 3.,
+        return_embed = False,
         **kwargs
     ):
         neg_logits = self.forward(*args, neg_text_embed = neg_text_embed, cond_drop_prob = 0., **kwargs)
-        pos_logits = self.forward(*args, text_embed = text_embed, cond_drop_prob = 0., **kwargs)
+        pos_logits, embed = self.forward(*args, return_embed = True, text_embed = text_embed, cond_drop_prob = 0., **kwargs)
 
-        return neg_logits + (pos_logits - neg_logits) * cond_scale
+        logits = neg_logits + (pos_logits - neg_logits) * cond_scale
+
+        if return_embed:
+            return scaled_logits, embed
+
+        return scaled_logits
 
     def forward(
         self,
@@ -216,6 +245,7 @@ class Transformer(nn.Module):
         return_embed = False,
         labels = None,
         ignore_index = 0,
+        self_cond_embed = None,
         cond_drop_prob = 0.,
         conditioning_token_ids: Optional[torch.Tensor] = None,
         texts: Optional[List[str]] = None,
@@ -254,12 +284,17 @@ class Transformer(nn.Module):
         x = self.token_emb(x)
         x = x + self.pos_emb(torch.arange(n, device = device))
 
-        x = self.transformer_blocks(x, context = context, context_mask = context_mask)
+        if self.self_cond:
+            if not exists(self_cond_embed):
+                self_cond_embed = torch.zeros_like(x)
+            x = x + self.self_cond_to_init_embed(self_cond_embed)
+
+        embed = self.transformer_blocks(x, context = context, context_mask = context_mask)
+
+        logits = self.to_logits(embed)
 
         if return_embed:
-            return x
-
-        logits = self.to_logits(x)
+            return logits, embed
 
         if not exists(labels):
             return logits
@@ -316,7 +351,8 @@ class MaskGit(nn.Module):
         vae: Optional[VQGanVAE] = None,
         cond_vae: Optional[VQGanVAE] = None,
         cond_image_size = None,
-        cond_drop_prob = 0.5
+        cond_drop_prob = 0.5,
+        self_cond_prob = 0.9
     ):
         super().__init__()
         self.vae = vae.copy_for_eval() if exists(vae) else None
@@ -335,10 +371,14 @@ class MaskGit(nn.Module):
         self.cond_drop_prob = cond_drop_prob
 
         self.transformer = transformer
+        self.self_cond = transformer.self_cond
         assert self.vae.codebook_size == self.cond_vae.codebook_size == transformer.num_tokens, 'transformer num_tokens must be set to be equal to the vae codebook size'
 
         self.mask_id = transformer.mask_id
         self.noise_schedule = noise_schedule
+
+        # self conditioning
+        self.self_cond_prob = self_cond_prob
 
     def save(self, path):
         torch.save(self.state_dict(), path)
@@ -349,6 +389,8 @@ class MaskGit(nn.Module):
         state_dict = torch.load(str(path))
         self.load_state_dict(state_dict)
 
+    @torch.no_grad()
+    @eval_decorator
     def generate(
         self,
         texts: List[str],
@@ -398,6 +440,8 @@ class MaskGit(nn.Module):
             with torch.no_grad():
                 _, cond_ids, _ = self.cond_vae.encode(cond_images)
 
+        self_cond_embed = None
+
         for timestep, steps_until_x0 in tqdm(zip(torch.linspace(0, 1, timesteps, device = device), reversed(range(timesteps))), total = timesteps):
 
             rand_mask_prob = self.noise_schedule(timestep)
@@ -407,12 +451,16 @@ class MaskGit(nn.Module):
 
             ids = ids.scatter(1, masked_indices, self.mask_id)
 
-            logits = demask_fn(
+            logits, embed = demask_fn(
                 ids,
                 text_embeds = text_embeds,
+                self_cond_embed = self_cond_embed,
                 conditioning_token_ids = cond_ids,
-                cond_scale = cond_scale
+                cond_scale = cond_scale,
+                return_embed = True
             )
+
+            self_cond_embed = embed if self.self_cond else None
 
             filtered_logits = top_k(logits, topk_filter_thres)
 
@@ -507,12 +555,30 @@ class MaskGit(nn.Module):
         x = torch.where(mask, mask_id, ids)
         labels = torch.where(mask, ids, ignore_index)
 
+        # self conditioning
+
+        self_cond_embed = None
+
+        if self.transformer.self_cond and random() < self.self_cond_prob:
+            with torch.no_grad():
+                _, self_cond_embed = self.transformer(
+                    x,
+                    texts = texts,
+                    text_embeds = text_embeds,
+                    conditioning_token_ids = cond_token_ids,
+                    cond_drop_prob = 0.,
+                    return_embed = True
+                )
+
+                self_cond_embed.detach_()
+
         # get loss
 
         ce_loss = self.transformer(
             x,
             texts = texts,
             text_embeds = text_embeds,
+            self_cond_embed = self_cond_embed,
             conditioning_token_ids = cond_token_ids,
             labels = labels,
             cond_drop_prob = cond_drop_prob,
