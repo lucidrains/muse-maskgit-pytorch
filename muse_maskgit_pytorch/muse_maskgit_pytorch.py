@@ -510,7 +510,7 @@ class MaskGit(nn.Module):
         # get loss
 
         ce_loss = self.transformer(
-            ids,
+            x,
             texts = texts,
             text_embeds = text_embeds,
             conditioning_token_ids = cond_token_ids,
