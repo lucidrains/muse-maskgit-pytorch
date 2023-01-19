@@ -229,8 +229,8 @@ images # List[PIL.Image.Image]
 - [x] add training code for vae
 - [x] add optional self-conditioning on embeddings
 
-- [ ] hook up accelerate training code for maskgit
 - [ ] combine with token critic paper, already implemented at <a href="https://github.com/lucidrains/phenaki-pytorch">Phenaki</a>
+- [ ] hook up accelerate training code for maskgit
 
 ## Citations
 
