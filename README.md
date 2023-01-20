@@ -228,8 +228,8 @@ images # List[PIL.Image.Image]
 - [x] separate cond_images_or_ids, it is not done right
 - [x] add training code for vae
 - [x] add optional self-conditioning on embeddings
+- [x] combine with token critic paper, already implemented at <a href="https://github.com/lucidrains/phenaki-pytorch">Phenaki</a>
 
-- [ ] combine with token critic paper, already implemented at <a href="https://github.com/lucidrains/phenaki-pytorch">Phenaki</a>
 - [ ] hook up accelerate training code for maskgit
 
 ## Citations
