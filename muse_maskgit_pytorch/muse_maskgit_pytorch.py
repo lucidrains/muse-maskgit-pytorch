@@ -204,7 +204,8 @@ class Transformer(nn.Module):
         self.transformer_blocks = TransformerBlocks(dim = dim, **kwargs)
         self.norm = LayerNorm(dim)
 
-        self.to_logits = nn.Linear(dim, default(dim_out, num_tokens), bias = False)
+        self.dim_out = default(dim_out, num_tokens)
+        self.to_logits = nn.Linear(dim, self.dim_out, bias = False)
 
         # text conditioning
 
@@ -317,6 +318,9 @@ class Transformer(nn.Module):
 
         if not exists(labels):
             return logits
+
+        if self.dim_out == 1:
+            return F.binary_cross_entropy_with_logits(rearrange(logits, '... 1 -> ...'), labels)
 
         logits = rearrange(logits, 'b n c -> b c n')
         return F.cross_entropy(logits, labels, ignore_index = ignore_index)
