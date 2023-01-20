@@ -187,22 +187,24 @@ class Transformer(nn.Module):
         num_tokens,
         dim,
         seq_len,
+        dim_out = None,
         t5_name = DEFAULT_T5_NAME,
         self_cond = False,
+        add_mask_id = False,
         **kwargs
     ):
         super().__init__()
-        self.mask_id = num_tokens
+        self.mask_id = num_tokens if add_mask_id else None
 
         self.num_tokens = num_tokens
-        self.token_emb = nn.Embedding(num_tokens + 1, dim)
+        self.token_emb = nn.Embedding(num_tokens + int(add_mask_id), dim)
         self.pos_emb = nn.Embedding(seq_len, dim)
         self.seq_len = seq_len
 
         self.transformer_blocks = TransformerBlocks(dim = dim, **kwargs)
         self.norm = LayerNorm(dim)
 
-        self.to_logits = nn.Linear(dim, num_tokens, bias = False)
+        self.to_logits = nn.Linear(dim, default(dim_out, num_tokens), bias = False)
 
         # text conditioning
 
@@ -319,6 +321,18 @@ class Transformer(nn.Module):
         logits = rearrange(logits, 'b n c -> b c n')
         return F.cross_entropy(logits, labels, ignore_index = ignore_index)
 
+# specialized transformers
+
+class MaskGitTransformer(Transformer):
+    def __init__(self, *args, **kwargs):
+        assert 'add_mask_id' not in kwargs
+        super().__init__(*args, add_mask_id = True, **kwargs)
+
+class TokenCritic(Transformer):
+    def __init__(self, *args, **kwargs):
+        assert 'dim_out' not in kwargs
+        super().__init__(*args, dim_out = 1, **kwargs)
+
 # classifier free guidance functions
 
 def uniform(shape, min = 0, max = 1, device = None):
@@ -363,7 +377,7 @@ class MaskGit(nn.Module):
     def __init__(
         self,
         image_size,
-        transformer: Transformer,
+        transformer: MaskGitTransformer,
         noise_schedule: Callable = cosine_schedule,
         vae: Optional[VQGanVAE] = None,
         cond_vae: Optional[VQGanVAE] = None,

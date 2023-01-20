@@ -41,7 +41,7 @@ Then pass the trained `VQGanVAE` and a `Transformer` to `MaskGit`
 
 ```python
 import torch
-from muse_maskgit_pytorch import VQGanVAE, MaskGit, Transformer
+from muse_maskgit_pytorch import VQGanVAE, MaskGit, MaskGitTransformer
 
 # first instantiate your vae
 
@@ -56,7 +56,7 @@ vae.load('/path/to/vae.pt') # you will want to load the exponentially moving ave
 
 # (1) create your transformer / attention network
 
-transformer = Transformer(
+transformer = MaskGitTransformer(
     num_tokens = 512,         # must be same as codebook size above
     seq_len = 256,            # must be equivalent to fmap_size ** 2 in vae
     dim = 512,                # model dimension
@@ -116,7 +116,7 @@ Optionally, you can pass in a different `VAE` as `cond_vae` for the conditioning
 ```python
 import torch
 import torch.nn.functional as F
-from muse_maskgit_pytorch import VQGanVAE, MaskGit, Transformer
+from muse_maskgit_pytorch import VQGanVAE, MaskGit, MaskGitTransformer
 
 # first instantiate your ViT VQGan VAE
 # a VQGan VAE made of transformers
@@ -132,7 +132,7 @@ vae.load('./path/to/vae.pt') # you will want to load the exponentially moving av
 
 # (1) create your transformer / attention network
 
-transformer = Transformer(
+transformer = MaskGitTransformer(
     num_tokens = 512,         # must be same as codebook size above
     seq_len = 1024,           # must be equivalent to fmap_size ** 2 in vae
     dim = 512,                # model dimension
