@@ -262,3 +262,13 @@ images # List[PIL.Image.Image]
     primaryClass = {cs.LG}
 }
 ```
+
+```bibtex
+@article{Lezama2022ImprovedMI,
+    title   = {Improved Masked Image Generation with Token-Critic},
+    author  = {Jos{\'e} Lezama and Huiwen Chang and Lu Jiang and Irfan Essa},
+    journal = {ArXiv},
+    year    = {2022},
+    volume  = {abs/2209.04439}
+}
+```
