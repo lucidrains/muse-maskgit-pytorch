@@ -272,3 +272,12 @@ images # List[PIL.Image.Image]
     volume  = {abs/2209.04439}
 }
 ```
+
+```bibtex
+@inproceedings{Nijkamp2021SCRIPTSP,
+    title   = {SCRIPT: Self-Critic PreTraining of Transformers},
+    author  = {Erik Nijkamp and Bo Pang and Ying Nian Wu and Caiming Xiong},
+    booktitle = {North American Chapter of the Association for Computational Linguistics},
+    year    = {2021}
+}
+```

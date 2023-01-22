@@ -194,6 +194,7 @@ class Transformer(nn.Module):
         **kwargs
     ):
         super().__init__()
+        self.dim = dim
         self.mask_id = num_tokens if add_mask_id else None
 
         self.num_tokens = num_tokens
@@ -330,6 +331,32 @@ class Transformer(nn.Module):
 
         return loss, logits
 
+# self critic wrapper
+
+class SelfCritic(nn.Module):
+    def __init__(self, net):
+        super().__init__()
+        self.net = net
+        self.to_pred = nn.Linear(net.dim, 1)
+
+    def forward_with_cond_scale(self, x, *args, **kwargs):
+        _, embeds = self.net.forward_with_cond_scale(x, *args, return_embed = True, **kwargs)
+        return self.to_pred(embeds)
+
+    def forward_with_neg_prompt(self, x, *args, **kwargs):
+        _, embeds = self.net.forward_with_neg_prompt(x, *args, return_embed = True, **kwargs)
+        return self.to_pred(embeds)
+
+    def forward(self, x, *args, labels = None, **kwargs):
+        _, embeds = self.net(x, *args, return_embed = True, **kwargs)
+        logits = self.to_pred(embeds)
+
+        if not exists(labels):
+            return logits
+
+        logits = rearrange(logits, '... 1 -> ...')
+        return F.binary_cross_entropy_with_logits(logits, labels)
+
 # specialized transformers
 
 class MaskGitTransformer(Transformer):
@@ -389,6 +416,7 @@ class MaskGit(nn.Module):
         transformer: MaskGitTransformer,
         noise_schedule: Callable = cosine_schedule,
         token_critic: Optional[TokenCritic] = None,
+        self_token_critic = False,
         vae: Optional[VQGanVAE] = None,
         cond_vae: Optional[VQGanVAE] = None,
         cond_image_size = None,
@@ -420,7 +448,12 @@ class MaskGit(nn.Module):
         self.mask_id = transformer.mask_id
         self.noise_schedule = noise_schedule
 
+        assert not (self_token_critic and exists(token_critic))
         self.token_critic = token_critic
+
+        if self_token_critic:
+            self.token_critic = SelfCritic(transformer)
+
         self.critic_loss_weight = critic_loss_weight
 
         # self conditioning
@@ -632,6 +665,12 @@ class MaskGit(nn.Module):
 
         x = torch.where(mask, mask_id, ids)
 
+        # get text embeddings
+
+        if exists(texts):
+            text_embeds = self.transformer.encode_text(texts)
+            texts = None
+
         # self conditioning
 
         self_cond_embed = None
@@ -640,7 +679,6 @@ class MaskGit(nn.Module):
             with torch.no_grad():
                 _, self_cond_embed = self.transformer(
                     x,
-                    texts = texts,
                     text_embeds = text_embeds,
                     conditioning_token_ids = cond_token_ids,
                     cond_drop_prob = 0.,
@@ -653,7 +691,6 @@ class MaskGit(nn.Module):
 
         ce_loss, logits = self.transformer(
             x,
-            texts = texts,
             text_embeds = text_embeds,
             self_cond_embed = self_cond_embed,
             conditioning_token_ids = cond_token_ids,
@@ -673,16 +710,15 @@ class MaskGit(nn.Module):
         critic_input = torch.where(mask, sampled_ids, x)
         critic_labels = (ids != critic_input).float()
 
-        bc_loss = self.token_critic(
+        bce_loss = self.token_critic(
             critic_input,
-            texts = texts,
             text_embeds = text_embeds,
             conditioning_token_ids = cond_token_ids,
             labels = critic_labels,
             cond_drop_prob = cond_drop_prob
         )
 
-        return ce_loss + self.critic_loss_weight * bc_loss
+        return ce_loss + self.critic_loss_weight * bce_loss
 
 # final Muse class
 
