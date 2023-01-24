@@ -486,6 +486,7 @@ class MaskGit(nn.Module):
         force_not_use_token_critic = False,
         timesteps = 18,  # ideal number of steps is 18 in maskgit paper
         cond_scale = 3,
+        critic_noise_scale = 1
     ):
         fmap_size = default(fmap_size, self.vae.get_encoded_fmap_size(self.image_size))
 
@@ -579,6 +580,9 @@ class MaskGit(nn.Module):
                 )
 
                 scores = rearrange(scores, '... 1 -> ...')
+
+                scores = scores + (uniform(scores.shape, device = device) - 0.5) * critic_noise_scale * (steps_until_x0 / timesteps)
+
             else:
                 probs_without_temperature = logits.softmax(dim = -1)
 
