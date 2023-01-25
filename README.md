@@ -7,7 +7,7 @@ Implementation of <a href="https://muse-model.github.io/">Muse</a>: Text-to-Imag
 ## Install
 
 ```bash
-$ pip install muse-maskgit-pytorch
+pip install muse-maskgit-pytorch
 ```
 
 ## Usage
