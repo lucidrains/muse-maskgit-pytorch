@@ -351,14 +351,14 @@ class VQGanVAETrainer(nn.Module):
         # save model every so often
         self.accelerator.wait_for_everyone()
         if self.is_main and not (steps % self.save_model_every):
-            state_dict = self.vae.state_dict()
+            state_dict = self.accelerator.unwrap_model(self.vae).state_dict()
             model_path = str(self.results_folder / f'vae.{steps}.pt')
-            torch.save(state_dict, model_path)
+            self.accelerator.save(state_dict, model_path)
 
             if self.use_ema:
-                ema_state_dict = self.ema_vae.state_dict()
+                ema_state_dict = self.accelerator.unwrap_model(self.ema_vae).state_dict()
                 model_path = str(self.results_folder / f'vae.{steps}.ema.pt')
-                torch.save(ema_state_dict, model_path)
+                self.accelerator.save(ema_state_dict, model_path)
 
             self.print(f'{steps}: saving model to {str(self.results_folder)}')
 
