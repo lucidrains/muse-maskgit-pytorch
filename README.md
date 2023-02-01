@@ -17,6 +17,7 @@ First train your VAE - `VQGanVAE`
 ```python
 import torch
 from muse_maskgit_pytorch import VQGanVAE, VQGanVAETrainer
+from accelerate import DistributedDataParallelKwargs
 
 vae = VQGanVAE(
     dim = 256,
@@ -45,7 +46,6 @@ Then pass the trained `VQGanVAE` and a `Transformer` to `MaskGit`
 ```python
 import torch
 from muse_maskgit_pytorch import VQGanVAE, MaskGit, MaskGitTransformer
-from accelerate import DistributedDataParallelKwargs
 
 # first instantiate your vae
 
