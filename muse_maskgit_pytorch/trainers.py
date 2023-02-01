@@ -18,7 +18,7 @@ from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
 
 from einops import rearrange
 
-from accelerate import Accelerator, DistributedType
+from accelerate import Accelerator, DistributedType, DistributedDataParallelKwargs
 
 from ema_pytorch import EMA
 
@@ -123,9 +123,22 @@ class VQGanVAETrainer(nn.Module):
         accelerate_kwargs: dict = dict()
     ):
         super().__init__()
+
+        # instantiate accelerator
+
+        ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters = True)
+
+        kwargs_handlers = accelerate_kwargs.get('kwargs_handlers', [])
+        kwargs_handlers.append(ddp_kwargs)
+        accelerate_kwargs.update(kwargs_handlers = kwargs_handlers)
+
         self.accelerator = Accelerator(**accelerate_kwargs)
 
+        # vae
+
         self.vae = vae
+
+        # training params
 
         self.register_buffer('steps', torch.Tensor([0]))
 
@@ -138,6 +151,8 @@ class VQGanVAETrainer(nn.Module):
         vae_parameters = all_parameters - discr_parameters
 
         self.vae_parameters = vae_parameters
+
+        # optimizers
 
         self.optim = Adam(vae_parameters, lr = lr)
         self.discr_optim = Adam(discr_parameters, lr = lr)
