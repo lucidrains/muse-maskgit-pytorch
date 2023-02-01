@@ -18,7 +18,7 @@ from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
 
 from einops import rearrange
 
-from accelerate import Accelerator
+from accelerate import Accelerator, DistributedType
 
 from ema_pytorch import EMA
 
@@ -127,10 +127,6 @@ class VQGanVAETrainer(nn.Module):
 
         self.vae = vae
 
-        self.use_ema = use_ema
-        if self.is_main and use_ema:
-            self.ema_vae = EMA(vae, update_after_step = ema_update_after_step, update_every = ema_update_every)
-
         self.register_buffer('steps', torch.Tensor([0]))
 
         self.num_train_steps = num_train_steps
@@ -193,6 +189,12 @@ class VQGanVAETrainer(nn.Module):
             self.dl,
             self.valid_dl
         )
+
+        self.use_ema = use_ema
+
+        if use_ema:
+            self.ema_vae = EMA(vae, update_after_step = ema_update_after_step, update_every = ema_update_every)
+            self.ema_vae = self.accelerator.prepare(self.ema_vae)
 
         self.dl_iter = cycle(self.dl)
         self.valid_dl_iter = cycle(self.valid_dl)
@@ -257,6 +259,8 @@ class VQGanVAETrainer(nn.Module):
         apply_grad_penalty = not (steps % self.apply_grad_penalty_every)
 
         self.vae.train()
+        discr = self.vae.module.discr if self.is_distributed else self.vae.discr
+        ema_vae = self.ema_vae.module if self.is_distributed else self.ema_vae
 
         # logs
 
@@ -287,7 +291,7 @@ class VQGanVAETrainer(nn.Module):
 
         # update discriminator
 
-        if exists(self.vae.discr):
+        if exists(discr):
             self.discr_optim.zero_grad()
 
             for _ in range(self.grad_accum_every):
@@ -301,7 +305,7 @@ class VQGanVAETrainer(nn.Module):
                 accum_log(logs, {'discr_loss': loss.item() / self.grad_accum_every})
 
             if exists(self.discr_max_grad_norm):
-                self.accelerator.clip_grad_norm_(self.vae.discr.parameters(), self.discr_max_grad_norm)
+                self.accelerator.clip_grad_norm_(discr.parameters(), self.discr_max_grad_norm)
 
             self.discr_optim.step()
 
@@ -311,16 +315,16 @@ class VQGanVAETrainer(nn.Module):
 
         # update exponential moving averaged generator
 
-        if self.is_main and self.use_ema:
-            self.ema_vae.update()
+        if self.use_ema:
+            ema_vae.update()
 
         # sample results every so often
 
-        if self.is_main and not (steps % self.save_results_every):
+        if not (steps % self.save_results_every):
             vaes_to_evaluate = ((self.vae, str(steps)),)
 
             if self.use_ema:
-                vaes_to_evaluate = ((self.ema_vae.ema_model, f'{steps}.ema'),) + vaes_to_evaluate
+                vaes_to_evaluate = ((ema_vae.ema_model, f'{steps}.ema'),) + vaes_to_evaluate
 
             for model, filename in vaes_to_evaluate:
                 model.eval()
@@ -345,7 +349,7 @@ class VQGanVAETrainer(nn.Module):
             self.print(f'{steps}: saving to {str(self.results_folder)}')
 
         # save model every so often
-
+        self.accelerator.wait_for_everyone()
         if self.is_main and not (steps % self.save_model_every):
             state_dict = self.vae.state_dict()
             model_path = str(self.results_folder / f'vae.{steps}.pt')
