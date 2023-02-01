@@ -17,11 +17,14 @@ First train your VAE - `VQGanVAE`
 ```python
 import torch
 from muse_maskgit_pytorch import VQGanVAE, VQGanVAETrainer
+from accelerate import DistributedDataParallelKwargs
 
 vae = VQGanVAE(
     dim = 256,
     vq_codebook_size = 512
 )
+
+ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True) # this is for ddp
 
 # train on folder of images, as many images as possible
 
@@ -31,7 +34,8 @@ trainer = VQGanVAETrainer(
     folder = '/path/to/images',
     batch_size = 4,
     grad_accum_every = 8,
-    num_train_steps = 50000
+    num_train_steps = 50000,
+    accelerate_kwargs={'kwargs_handlers': [ddp_kwargs]}
 ).cuda()
 
 trainer.train()
