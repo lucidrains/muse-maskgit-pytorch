@@ -275,7 +275,8 @@ class VQGanVAETrainer(nn.Module):
 
         self.vae.train()
         discr = self.vae.module.discr if self.is_distributed else self.vae.discr
-        ema_vae = self.ema_vae.module if self.is_distributed else self.ema_vae
+        if self.use_ema:
+            ema_vae = self.ema_vae.module if self.is_distributed else self.ema_vae
 
         # logs
 
