@@ -36,6 +36,9 @@ def eval_decorator(fn):
         return out
     return inner
 
+def l2norm(t):
+    return F.normalize(t, dim = -1)
+
 # tensor helpers
 
 def get_mask_subset_prob(mask, prob, min_mask = 0):
@@ -89,10 +92,11 @@ class Attention(nn.Module):
         dim,
         dim_head = 64,
         heads = 8,
-        cross_attend = False
+        cross_attend = False,
+        scale = 8
     ):
         super().__init__()
-        self.scale = dim_head ** -0.5
+        self.scale = scale
         self.heads =  heads
         inner_dim = dim_head * heads
 
@@ -103,6 +107,10 @@ class Attention(nn.Module):
 
         self.to_q = nn.Linear(dim, inner_dim, bias = False)
         self.to_kv = nn.Linear(dim, inner_dim * 2, bias = False)
+
+        self.q_scale = nn.Parameter(torch.ones(dim_head))
+        self.k_scale = nn.Parameter(torch.ones(dim_head))
+
         self.to_out = nn.Linear(inner_dim, dim, bias = False)
 
     def forward(
@@ -121,8 +129,6 @@ class Attention(nn.Module):
 
         q, k, v = (self.to_q(x), *self.to_kv(kv_input).chunk(2, dim = -1))
 
-        q = q * self.scale
-
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = h), (q, k, v))
 
         nk, nv = self.null_kv
@@ -131,7 +137,11 @@ class Attention(nn.Module):
         k = torch.cat((nk, k), dim = -2)
         v = torch.cat((nv, v), dim = -2)
 
-        sim = einsum('b h i d, b h j d -> b h i j', q, k)
+        q, k = map(l2norm, (q, k))
+        q = q * self.q_scale
+        k = k * self.k_scale
+
+        sim = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
 
         if exists(context_mask):
             context_mask = rearrange(context_mask, 'b j -> b 1 1 j')

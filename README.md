@@ -283,3 +283,12 @@ images # List[PIL.Image.Image]
     year    = {2021}
 }
 ```
+
+```bibtex
+@misc{gilmer2023intriguing
+    title  = {Intriguing Properties of Transformer Training Instabilities},
+    author = {Justin Gilmer, Andrea Schioppa, and Jeremy Cohen},
+    year   = {2023},
+    status = {to be published - one attention stabilization technique is circulating within Google Brain, being used by multiple teams}
+}
+```
