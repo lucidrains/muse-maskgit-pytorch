@@ -56,31 +56,14 @@ def get_encoded_dim(name):
 
 # encoding text
 
-@beartype
-def t5_encode_text(
-    texts: Union[str, List[str]],
-    tokenizer,
-    t5,
-    output_device = None
-):
-    if isinstance(texts, str):
-        texts = [texts]
-
+def t5_encode_text_from_encoded(input_ids,
+                                attn_mask,
+                                t5,
+                                output_device):
     if torch.cuda.is_available():
         t5 = t5.cuda()
 
     device = next(t5.parameters()).device
-
-    encoded = tokenizer.batch_encode_plus(
-        texts,
-        return_tensors = "pt",
-        padding = 'longest',
-        max_length = MAX_LENGTH,
-        truncation = True
-    )
-
-    input_ids = encoded.input_ids.to(device)
-    attn_mask = encoded.attention_mask.to(device)
 
     t5.eval()
 
@@ -96,3 +79,21 @@ def t5_encode_text(
 
     encoded_text.to(output_device)
     return encoded_text
+@beartype
+def t5_encode_text(
+    texts: Union[str, List[str]],
+    tokenizer,
+    t5,
+    output_device = None
+):
+    if isinstance(texts, str):
+        texts = [texts]
+
+    encoded = tokenizer.batch_encode_plus(
+        texts,
+        return_tensors = "pt",
+        padding = 'longest',
+        max_length = MAX_LENGTH,
+        truncation = True
+    )
+    return t5_encode_text_from_encoded(encoded.input_ids, encoded.attn_mask, t5, output_device)

@@ -22,6 +22,7 @@ from ema_pytorch import EMA
 from muse_maskgit_pytorch.diffusers_optimization import get_scheduler
 from muse_maskgit_pytorch.muse_maskgit_pytorch import MaskGit
 from muse_maskgit_pytorch.trainers.base_accelerated_trainer import BaseAcceleratedTrainer
+from muse_maskgit_pytorch.t5 import t5_encode_text_from_encoded
 import torch.nn.functional as F
 def noop(*args, **kwargs):
     pass
@@ -108,12 +109,12 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         # logs
         train_loss = 0
         with self.accelerator.accumulate(self.model):
-            imgs, token_ids, attention_mask = next(self.dl_iter)
+            imgs, input_ids, attn_mask = next(self.dl_iter)
+            text_embeds = t5_encode_text_from_encoded(input_ids, attn_mask, self.model.t5, device)
             imgs = imgs.to(device)
             loss = self.model(
                 imgs,
-                token_ids=token_ids,
-                attentioN_mask=attention_mask
+                text_embeds=text_embeds,
                 add_gradient_penalty = apply_grad_penalty,
                 return_loss = True
             )

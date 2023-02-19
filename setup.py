@@ -19,6 +19,7 @@ setup(
   ],
   install_requires=[
     'accelerate',
+    'datasets',
     'beartype',
     'einops>=0.6',
     'ema-pytorch',

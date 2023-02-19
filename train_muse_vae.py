@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from torchvision.utils import save_image
 from pathlib import Path
-
+from datasets import load_dataset
 import os
 from muse_maskgit_pytorch import (
     VQGanVAE,
@@ -264,25 +264,16 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-
-def vae_trainer(args):
+def main():
+    args = parse_args()
+    accelerator = Accelerator(
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        mixed_precision=args.mixed_precision,
+        log_with=args.report_to,
+        logging_dir=args.logging_dir,
+    )
+    dataset = ImageDataset(args.folder, args.image_size)
     vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
-
-    current_step = 0
-    resume_from = args.resume_from
-    # load the vae from disk if we have previously trained one
-    if resume_from:
-        print("Resuming VAE from: ", resume_from)
-        vae.load(resume_from)
-
-        resume_from_parts = resume_from.split(".")
-        for i in range(len(resume_from_parts) - 1, -1, -1):
-            if resume_from_parts[i].isdigit():
-                current_step = int(resume_from_parts[i])
-                print("Found step " + str(current_step))
-                break
-        if current_step == 0:
-            print("No step found")
 
     trainer = VQGanVAETrainer(
         vae,
@@ -314,16 +305,6 @@ def vae_trainer(args):
     )
 
     trainer.train()
-
-def main():
-    args = parse_args()
-    accelerator = Accelerator(
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        mixed_precision=args.mixed_precision,
-        log_with=args.report_to,
-        logging_dir=args.logging_dir,
-    )
-    dataset = ImageDataset(args.folder, args.image_size)
 
 
 

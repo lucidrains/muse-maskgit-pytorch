@@ -10,7 +10,8 @@ import torchvision.transforms as T
 from PIL import Image, ImageFile
 from pathlib import Path
 from muse_maskgit_pytorch.t5 import MAX_LENGTH
-
+import datasets
+import random
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
@@ -73,3 +74,15 @@ class ImageTextDataset(Dataset):
         input_ids = encoded.input_ids
         attn_mask = encoded.attention_mask
         return self.transform(image), input_ids, attn_mask
+
+def get_dataset_from_dataroot(data_root, args):
+    image_paths = list(Path(data_root).rglob("*.[jJ][pP][gG]"))
+    random.shuffle(image_paths)
+    data_dict = {args.image_column: [], args.caption_column: []}
+    for image_path in image_paths:
+        image = Image.open(image_path)
+        if not image.mode == "RGB":
+            image = image.convert("RGB")
+        data_dict[args.image_column].append(image)
+        data_dict[args.caption_column].append(None)
+    return datasets.Dataset.from_dict(data_dict)
