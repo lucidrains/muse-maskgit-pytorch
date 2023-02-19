@@ -15,10 +15,9 @@ from einops import rearrange, repeat
 from beartype import beartype
 
 from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
-from muse_maskgit_pytorch.t5 import t5_encode_text, get_encoded_dim, DEFAULT_T5_NAME
-
+from muse_maskgit_pytorch.t5 import t5_encode_text, get_encoded_dim, DEFAULT_T5_NAME, get_model_and_tokenizer
+from pathlib import Path
 from tqdm.auto import tqdm
-
 # helpers
 
 def exists(val):
@@ -220,8 +219,8 @@ class Transformer(nn.Module):
 
         # text conditioning
 
-        self.encode_text = partial(t5_encode_text, name = t5_name)
-
+        self.tokenizer, self.t5 = get_model_and_tokenizer(t5_name)
+        self.encode_text = partial(t5_encode_text, tokenizer = self.tokenizer, t5=self.t5)
         text_embed_dim = get_encoded_dim(t5_name)
 
         self.text_embed_proj = nn.Linear(text_embed_dim, dim, bias = False) if text_embed_dim != dim else nn.Identity() 
@@ -254,6 +253,7 @@ class Transformer(nn.Module):
 
     def forward_with_neg_prompt(
         self,
+        *args,
         text_embed: torch.Tensor,
         neg_text_embed: torch.Tensor,
         cond_scale = 3.,
@@ -263,7 +263,7 @@ class Transformer(nn.Module):
         neg_logits = self.forward(*args, neg_text_embed = neg_text_embed, cond_drop_prob = 0., **kwargs)
         pos_logits, embed = self.forward(*args, return_embed = True, text_embed = text_embed, cond_drop_prob = 0., **kwargs)
 
-        logits = neg_logits + (pos_logits - neg_logits) * cond_scale
+        scaled_logits = neg_logits + (pos_logits - neg_logits) * cond_scale
 
         if return_embed:
             return scaled_logits, embed

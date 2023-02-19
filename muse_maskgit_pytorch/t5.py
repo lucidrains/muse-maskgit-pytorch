@@ -59,13 +59,12 @@ def get_encoded_dim(name):
 @beartype
 def t5_encode_text(
     texts: Union[str, List[str]],
-    name = DEFAULT_T5_NAME,
+    tokenizer,
+    t5,
     output_device = None
 ):
     if isinstance(texts, str):
         texts = [texts]
-
-    t5, tokenizer = get_model_and_tokenizer(name)
 
     if torch.cuda.is_available():
         t5 = t5.cuda()
