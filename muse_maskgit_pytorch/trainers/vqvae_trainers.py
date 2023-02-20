@@ -154,7 +154,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         # update vae (generator)
 
         for _ in range(self.gradient_accumulation_steps):
-            img, _ = next(self.dl_iter)
+            img = next(self.dl_iter)
             img = img.to(device)
 
             with self.accelerator.autocast():
@@ -179,7 +179,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
             self.discr_optim.zero_grad()
 
             for _ in range(self.gradient_accumulation_steps):
-                img, _ = next(self.dl_iter)
+                img = next(self.dl_iter)
                 img = img.to(device)
 
                 loss = self.model(img, return_discr_loss = True)

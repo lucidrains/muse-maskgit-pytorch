@@ -16,14 +16,10 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 class ImageDataset(Dataset):
-    def __init__(self, folder, image_size, exts=["jpg", "jpeg", "png"]):
+    def __init__(self, dataset, image_size, image_column="image"):
         super().__init__()
-        self.folder = folder
-        self.image_size = image_size
-        self.paths = [p for ext in exts for p in Path(f"{folder}").glob(f"**/*.{ext}")]
-
-        print(f"{len(self.paths)} training samples found at {folder}")
-
+        self.dataset = dataset
+        self.image_column = image_column
         self.transform = T.Compose(
             [
                 T.Lambda(lambda img: img.convert("RGB") if img.mode != "RGB" else img),
@@ -38,25 +34,13 @@ class ImageDataset(Dataset):
         return len(self.paths)
 
     def __getitem__(self, index):
-        path = self.paths[index]
-        img = Image.open(path)
-        return self.transform(img)
-class ImageTextDataset(Dataset):
+        image= self.dataset[index][self.image_column]
+        return self.transform(image)
+class ImageTextDataset(ImageDataset):
     def __init__(self, dataset, image_size, tokenizer, image_column="image", caption_column="caption"):
-        super().__init__()
-        self.image_column = image_column
+        super().__init__(dataset, image_size=image_size, image_column=image_column)
         self.caption_column = caption_column
         self.tokenizer = tokenizer
-        self.dataset = dataset
-        self.transform = T.Compose(
-            [
-                T.Lambda(lambda img: img.convert("RGB") if img.mode != "RGB" else img),
-                T.Resize(image_size),
-                T.RandomHorizontalFlip(),
-                T.CenterCrop(image_size),
-                T.ToTensor(),
-            ]
-        )
     def __getitem__(self, index):
         image= self.dataset[index][self.image_column]
         if self.caption_column == None:

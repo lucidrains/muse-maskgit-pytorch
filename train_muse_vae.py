@@ -11,7 +11,7 @@ from muse_maskgit_pytorch import (
     MaskGitTransformer,
     Muse,
 )
-from accelerate import Accelerator
+from muse_maskgit_pytorch.dataset import get_dataset_from_dataroot, ImageDataset
 
 
 import argparse
@@ -19,6 +19,15 @@ import argparse
 def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--image_column", type=str, default="image", help="The column of the dataset containing an image."
+    )
+    parser.add_argument(
+        "--caption_column",
+        type=str,
+        default="caption",
+        help="The column of the dataset containing a caption or a list of captions.",
+    )
     parser.add_argument(
         "--report_to",
         type=str,
@@ -56,9 +65,15 @@ def parse_args():
         help="Path to the vae model. eg. 'results/vae.steps.pt'",
     )
     parser.add_argument(
-        "--data_folder",
+        "--dataset_name",
         type=str,
-        default="data/datasets/INE/data",
+        default=None,
+        help="Name of the huggingface dataset used."
+    )
+    parser.add_argument(
+        "--train_data_dir",
+        type=str,
+        default=None,
         help="Dataset folder where your input images for training are.",
     )
     parser.add_argument(
@@ -92,193 +107,22 @@ def parse_args():
         default=256,
         help="Image size. You may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it",
     )
-    parser.add_argument(
-        "--lr_scheduler",
-        type=str,
-        default="constant",
-        help='The scheduler type to use. Choose between ["linear", "cosine", "cosine_with_restarts", "polynomial", "constant", "constant_with_warmup"]',
-    )
-    parser.add_argument(
-        "--lr_warmup_steps",
-        type=int,
-        default=0,
-        help="Number of steps for the warmup in the lr scheduler.",
-    )
-
-    # base args
-    parser.add_argument(
-        "--base_texts",
-        type=list,
-        default=[
-            "a whale breaching from afar",
-            "young girl blowing out candles on her birthday cake",
-            "fireworks with blue and green sparkles",
-            "waking up to a psychedelic landscape",
-        ],
-        help="List of Prompts to use.",
-    )
-    parser.add_argument(
-        "--base_resume_from",
-        type=str,
-        default="",
-        help="Path to the vae model. eg. 'results/vae.steps.pt'",
-    )
-    parser.add_argument(
-        "--base_num_tokens",
-        type=int,
-        default=256,
-        help="must be same as vq_codebook_size.",
-    )
-    parser.add_argument(
-        "--base_seq_len",
-        type=int,
-        default=1024,
-        help="must be equivalent to fmap_size ** 2 in vae.",
-    )
-    parser.add_argument("--base_dim", type=int, default=128, help="Model dimension.")
-    parser.add_argument("--base_depth", type=int, default=2, help="Depth.")
-    parser.add_argument(
-        "--base_dim_head", type=int, default=64, help="Attention head dimension."
-    )
-    parser.add_argument("--base_heads", type=int, default=8, help="Attention heads.")
-    parser.add_argument(
-        "--base_ff_mult", type=int, default=4, help="Feedforward expansion factor"
-    )
-    parser.add_argument(
-        "--base_t5_name", type=str, default="t5-small", help="Name of your T5 model."
-    )
-    parser.add_argument("--base_vq_codebook_size", type=int, default=256, help="")
-    parser.add_argument("--base_image_size", type=int, default=512, help="")
-    parser.add_argument(
-        "--base_cond_drop_prob",
-        type=float,
-        default=0.25,
-        help="Conditional dropout, for Classifier Free Guidance",
-    )
-    parser.add_argument(
-        "--base_cond_scale",
-        type=int,
-        default=3,
-        help="Conditional for Classifier Free Guidance",
-    )
-    parser.add_argument(
-        "--base_timesteps",
-        type=int,
-        default=20,
-        help="Time Steps to use for the generation.",
-    )
-
-    # superres args
-    parser.add_argument(
-        "--superres_texts",
-        type=list,
-        default=[
-            "a whale breaching from afar",
-            "young girl blowing out candles on her birthday cake",
-            "fireworks with blue and green sparkles",
-            "waking up to a psychedelic landscape",
-        ],
-        help="List of Prompts to use.",
-    )
-    parser.add_argument(
-        "--superres_resume_from",
-        type=str,
-        default="",
-        help="Path to the vae model. eg. 'results/vae.steps.pt'",
-    )
-    parser.add_argument(
-        "--superres_num_tokens",
-        type=int,
-        default=256,
-        help="must be same as vq_codebook_size.",
-    )
-    parser.add_argument(
-        "--superres_seq_len",
-        type=int,
-        default=1024,
-        help="must be equivalent to fmap_size ** 2 in vae.",
-    )
-    parser.add_argument(
-        "--superres_dim", type=int, default=128, help="Model dimension."
-    )
-    parser.add_argument("--superres_depth", type=int, default=2, help="Depth.")
-    parser.add_argument(
-        "--superres_dim_head", type=int, default=64, help="Attention head dimension."
-    )
-    parser.add_argument(
-        "--superres_heads", type=int, default=8, help="Attention heads."
-    )
-    parser.add_argument(
-        "--superres_ff_mult", type=int, default=4, help="Feedforward expansion factor"
-    )
-    parser.add_argument(
-        "--superres_t5_name", type=str, default="t5-small", help="name of your T5"
-    )
-    parser.add_argument("--superres_vq_codebook_size", type=int, default=256, help="")
-    parser.add_argument("--superres_image_size", type=int, default=512, help="")
-    parser.add_argument(
-        "--superres_timesteps",
-        type=int,
-        default=20,
-        help="Time Steps to use for the generation.",
-    )
-
-    # generate args
-    parser.add_argument(
-        "--prompt",
-        type=list,
-        default=[
-            "a whale breaching from afar",
-            "young girl blowing out candles on her birthday cake",
-            "fireworks with blue and green sparkles",
-            "waking up to a psychedelic landscape",
-        ],
-        help="List of Prompts to use for the generation.",
-    )
-    parser.add_argument(
-        "--base_model_path",
-        type=str,
-        default="",
-        help="Path to the base vae model. eg. 'results/vae.steps.base.pt'",
-    )
-    parser.add_argument(
-        "--superres_maskgit",
-        type=str,
-        default="",
-        help="Path to the superres vae model. eg. 'results/vae.steps.superres.pt'",
-    )
-    parser.add_argument(
-        "--generate_timesteps",
-        type=int,
-        default=20,
-        help="Time Steps to use for the generation.",
-    )
-    parser.add_argument(
-        "--generate_cond_scale",
-        type=int,
-        default=3,
-        help="Conditional for Classifier Free Guidance",
-    )
-
     # Parse the argument
     args = parser.parse_args()
     return args
 
 def main():
     args = parse_args()
-    accelerator = Accelerator(
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        mixed_precision=args.mixed_precision,
-        log_with=args.report_to,
-        logging_dir=args.logging_dir,
-    )
-    dataset = ImageDataset(args.folder, args.image_size)
+    if args.train_data_dir:
+        dataset = get_dataset_from_dataroot(args.train_data_dir, args)
+    elif args.dataset_name:
+        dataset = load_dataset(args.dataset_name)
     vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
+    dataset = ImageDataset(dataset, args.image_size, image_column=args.image_column, caption_column=args.caption_column)
 
     trainer = VQGanVAETrainer(
         vae,
         folder=args.data_folder,
-        current_step=current_step,
         num_train_steps=args.num_train_steps,
         batch_size=args.batch_size,
         image_size=args.image_size,  # you may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it
