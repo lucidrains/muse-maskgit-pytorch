@@ -1,10 +1,3 @@
-"""
-Author: Isamu Isozaki (isamu.website@gmail.com)
-Description: description
-Created:  2023-02-18T03:59:45.810Z
-Modified: !date!
-Modified By: modifier
-"""
 from torch.utils.data import Dataset
 import torchvision.transforms as T
 from PIL import Image, ImageFile
