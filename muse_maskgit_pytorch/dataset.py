@@ -5,8 +5,9 @@ from pathlib import Path
 from muse_maskgit_pytorch.t5 import MAX_LENGTH
 import datasets
 import random
+import torch
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-
+from torch.utils.data import Dataset, DataLoader, random_split
 
 class ImageDataset(Dataset):
     def __init__(self, dataset, image_size, image_column="image"):
@@ -63,3 +64,24 @@ def get_dataset_from_dataroot(data_root, args):
         data_dict[args.image_column].append(image)
         data_dict[args.caption_column].append(None)
     return datasets.Dataset.from_dict(data_dict)
+def split_dataset_into_dataloaders(dataset, valid_frac=0.05, seed=42):
+    if valid_frac > 0:
+        train_size = int((1 - valid_frac) * len(dataset))
+        valid_size = len(dataset) - train_size
+        dataset, validation_dataset = random_split(dataset, [train_size, valid_size], generator = torch.Generator().manual_seed(seed))
+        print(f'training with dataset of {len(dataset)} samples and validating with randomly splitted {len(validation_dataset)} samples')
+    else:
+        validation_dataset = dataset
+        print(f'training with shared training and valid dataset of {len(dataset)} samples')
+    dataloader = DataLoader(
+        dataset,
+        batch_size = args.batch_size,
+        shuffle = True
+    )
+
+    validation_dataoloader = DataLoader(
+        validation_dataset,
+        batch_size = args.batch_size,
+        shuffle = True
+    )
+    return dataloader, validation_dataoloader

@@ -11,14 +11,19 @@ from muse_maskgit_pytorch import (
     MaskGitTransformer,
     Muse,
 )
-from muse_maskgit_pytorch.dataset import get_dataset_from_dataroot, ImageDataset
-from torch.utils.data import Dataset, DataLoader, random_split
+from muse_maskgit_pytorch.dataset import get_dataset_from_dataroot, ImageDataset, split_dataset_into_dataloaders
 
 
 import argparse
 def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--max_grad_norm", type=float, default=None, help="Max gradient norm."
+    )
+    parser.add_argument(
+        "--discr_max_grad_norm", type=float, default=None, help="Max gradient norm for discriminator."
+    )
     parser.add_argument(
         "--seed", type=int, default=42, help="Seed."
     )
@@ -134,38 +139,19 @@ def main():
         dataset = load_dataset(args.dataset_name)
     vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
     dataset = ImageDataset(dataset, args.image_size, image_column=args.image_column)
-    if args.valid_frac > 0:
-        train_size = int((1 - args.valid_frac) * len(dataset))
-        valid_size = len(dataset) - train_size
-        dataset, validation_dataset = random_split(dataset, [train_size, valid_size], generator = torch.Generator().manual_seed(args.seed))
-        print(f'training with dataset of {len(dataset)} samples and validating with randomly splitted {len(validation_dataset)} samples')
-    else:
-        validation_dataset = dataset
-        print(f'training with shared training and valid dataset of {len(dataset)} samples')
-
     # dataloader
 
-    dataloader = DataLoader(
-        dataset,
-        batch_size = args.batch_size,
-        shuffle = True
-    )
-
-    validation_dataoloader = DataLoader(
-        validation_dataset,
-        batch_size = args.batch_size,
-        shuffle = True
-    )
+    dataloader, validation_dataloader = split_dataset_into_dataloaders(dataset, args.valid_frac, args.seed)
     trainer = VQGanVAETrainer(
         vae,
         dataloader,
-        validation_dataoloader,
+        validation_dataloader,
         current_step=0,
         num_train_steps=args.num_train_steps,
         batch_size=args.batch_size,
         lr=args.lr,
-        max_grad_norm=None,
-        discr_max_grad_norm=None,
+        max_grad_norm=args.max_grad_norm,
+        discr_max_grad_norm=args.discr_max_grad_norm,
         save_results_every=args.save_results_every,
         save_model_every=args.save_model_every,
         results_dir=args.results_dir,
