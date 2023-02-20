@@ -9,15 +9,41 @@ from muse_maskgit_pytorch import (
     MaskGitTrainer,
     MaskGit,
     MaskGitTransformer,
-    Muse,
 )
-from muse_maskgit_pytorch.dataset import get_dataset_from_dataroot, ImageTextDataset
+from muse_maskgit_pytorch.dataset import get_dataset_from_dataroot, ImageTextDataset, split_dataset_into_dataloaders
 
 import argparse
 
 def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--max_grad_norm", type=float, default=None, help="Max gradient norm."
+    )
+    parser.add_argument(
+        "--discr_max_grad_norm", type=float, default=None, help="Max gradient norm for discriminator."
+    )
+    parser.add_argument(
+        "--seed", type=int, default=42, help="Seed."
+    )
+    parser.add_argument(
+        "--valid_frac", type=float, default=0.05, help="validation fraction."
+    )
+    parser.add_argument(
+        "--use_ema", action="store_true", help="Whether to use ema."
+    )
+    parser.add_argument(
+        "--ema_beta", type=float, default=0.995, help="Ema beta."
+    )
+    parser.add_argument(
+        "--ema_update_after_step", type=int, default=1, help="Ema update after step."
+    )
+    parser.add_argument(
+        "--ema_update_every", type=int, default=1, help="Ema update every this number of steps."
+    )
+    parser.add_argument(
+        "--apply_grad_penalty_every", type=int, default=4, help="Apply gradient penalty every this number of steps."
+    )
     parser.add_argument(
         "--image_column", type=str, default="image", help="The column of the dataset containing an image."
     )
