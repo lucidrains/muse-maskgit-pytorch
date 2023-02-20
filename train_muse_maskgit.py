@@ -6,12 +6,12 @@ from datasets import load_dataset
 import os
 from muse_maskgit_pytorch import (
     VQGanVAE,
-    VQGanVAETrainer,
+    MaskGitTrainer,
     MaskGit,
     MaskGitTransformer,
     Muse,
 )
-from muse_maskgit_pytorch.dataset import get_dataset_from_dataroot, ImageDataset
+from muse_maskgit_pytorch.dataset import get_dataset_from_dataroot, ImageTextDataset
 
 
 import argparse
@@ -117,19 +117,46 @@ def main():
         dataset = get_dataset_from_dataroot(args.train_data_dir, args)
     elif args.dataset_name:
         dataset = load_dataset(args.dataset_name)
-    vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
-    dataset = ImageDataset(dataset, args.image_size, image_column=args.image_column, caption_column=args.caption_column)
+    vae = VQGanVAE(
+        dim = args.dim,
+        vq_codebook_size = args.vq_codebook_size
+    ).cuda()
+    
+    print ('Resuming VAE from: ', args.resume_from)
+    vae.load(args.resume_from)    # you will want to load the exponentially moving averaged VAE
+    
+    # then you plug the vae and transformer into your MaskGit as so
+    
+    # (1) create your transformer / attention network
+    
+    transformer = MaskGitTransformer(
+        num_tokens = args.num_tokens,         # must be same as codebook size above
+        seq_len = args.seq_len,               # must be equivalent to fmap_size ** 2 in vae
+        dim = args.dim,                       # model dimension
+        depth = args.depth,                   # depth
+        dim_head = args.dim_head,             # attention head dimension
+        heads = args.heads,                   # attention heads,
+        ff_mult = args.ff_mult,               # feedforward expansion factor
+        t5_name = args.t5_name,               # name of your T5
+    )
+    
+    # (2) pass your trained VAE and the base transformer to MaskGit
+    
+    maskgit = MaskGit(
+        vae = vae,                 # vqgan vae
+        transformer = transformer, # transformer
+        image_size = args.image_size,          # image size
+        cond_drop_prob = args.cond_drop_prob,     # conditional dropout, for classifier free guidance
+    ).cuda()
+    dataset = ImageTextDataset(dataset, args.image_size, transformer.tokenizer, image_column=args.image_column, caption_column=args.caption_column)
 
-    trainer = VQGanVAETrainer(
-        vae,
+    trainer = MaskGitTrainer(
+        maskgit,
         folder=args.data_folder,
         num_train_steps=args.num_train_steps,
         batch_size=args.batch_size,
         image_size=args.image_size,  # you may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it
         lr=args.lr,
-        lr_scheduler=args.lr_scheduler,
-        lr_warmup_steps=args.lr_warmup_steps,
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
         max_grad_norm=None,
         discr_max_grad_norm=None,
         save_results_every=args.save_results_every,
@@ -143,9 +170,8 @@ def main():
         ema_update_after_step=1,
         ema_update_every=1,
         apply_grad_penalty_every=4,
-        accelerate_kwargs={
-            'mixed_precision': args.mixed_precisionWW
-        },
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        mixed_precesion=args.mixed_precision,
     )
 
     trainer.train()

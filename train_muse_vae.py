@@ -118,7 +118,7 @@ def main():
     elif args.dataset_name:
         dataset = load_dataset(args.dataset_name)
     vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
-    dataset = ImageDataset(dataset, args.image_size, image_column=args.image_column, caption_column=args.caption_column)
+    dataset = ImageDataset(dataset, args.image_size, image_column=args.image_column)
 
     trainer = VQGanVAETrainer(
         vae,
@@ -127,9 +127,6 @@ def main():
         batch_size=args.batch_size,
         image_size=args.image_size,  # you may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it
         lr=args.lr,
-        lr_scheduler=args.lr_scheduler,
-        lr_warmup_steps=args.lr_warmup_steps,
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
         max_grad_norm=None,
         discr_max_grad_norm=None,
         save_results_every=args.save_results_every,
@@ -143,9 +140,8 @@ def main():
         ema_update_after_step=1,
         ema_update_every=1,
         apply_grad_penalty_every=4,
-        accelerate_kwargs={
-            'mixed_precision': args.mixed_precisionWW
-        },
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        mixed_precision=args.mixed_precision
     )
 
     trainer.train()
