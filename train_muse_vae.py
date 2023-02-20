@@ -12,21 +12,36 @@ from muse_maskgit_pytorch import (
     Muse,
 )
 from muse_maskgit_pytorch.dataset import get_dataset_from_dataroot, ImageDataset
+from torch.utils.data import Dataset, DataLoader, random_split
 
 
 import argparse
-
 def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--image_column", type=str, default="image", help="The column of the dataset containing an image."
+        "--seed", type=int, default=42, help="Seed."
     )
     parser.add_argument(
-        "--caption_column",
-        type=str,
-        default="caption",
-        help="The column of the dataset containing a caption or a list of captions.",
+        "--valid_frac", type=float, default=0.05, help="validation fraction."
+    )
+    parser.add_argument(
+        "--use_ema", action="store_true", help="Whether to use ema."
+    )
+    parser.add_argument(
+        "--ema_beta", type=float, default=0.995, help="Ema beta."
+    )
+    parser.add_argument(
+        "--ema_update_after_step", type=int, default=1, help="Ema update after step."
+    )
+    parser.add_argument(
+        "--ema_update_every", type=int, default=1, help="Ema update every this number of steps."
+    )
+    parser.add_argument(
+        "--apply_grad_penalty_every", type=int, default=4, help="Apply gradient penalty every this number of steps."
+    )
+    parser.add_argument(
+        "--image_column", type=str, default="image", help="The column of the dataset containing an image."
     )
     parser.add_argument(
         "--report_to",
@@ -119,13 +134,35 @@ def main():
         dataset = load_dataset(args.dataset_name)
     vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
     dataset = ImageDataset(dataset, args.image_size, image_column=args.image_column)
+    if args.valid_frac > 0:
+        train_size = int((1 - args.valid_frac) * len(dataset))
+        valid_size = len(dataset) - train_size
+        dataset, validation_dataset = random_split(dataset, [train_size, valid_size], generator = torch.Generator().manual_seed(args.seed))
+        print(f'training with dataset of {len(dataset)} samples and validating with randomly splitted {len(validation_dataset)} samples')
+    else:
+        validation_dataset = dataset
+        print(f'training with shared training and valid dataset of {len(dataset)} samples')
 
+    # dataloader
+
+    dataloader = DataLoader(
+        dataset,
+        batch_size = args.batch_size,
+        shuffle = True
+    )
+
+    validation_dataoloader = DataLoader(
+        validation_dataset,
+        batch_size = args.batch_size,
+        shuffle = True
+    )
     trainer = VQGanVAETrainer(
         vae,
-        folder=args.data_folder,
+        dataloader,
+        validation_dataoloader,
+        current_step=0,
         num_train_steps=args.num_train_steps,
         batch_size=args.batch_size,
-        image_size=args.image_size,  # you may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it
         lr=args.lr,
         max_grad_norm=None,
         discr_max_grad_norm=None,
@@ -133,13 +170,11 @@ def main():
         save_model_every=args.save_model_every,
         results_dir=args.results_dir,
         logging_dir=args.logging_dir,
-        valid_frac=0.05,
-        random_split_seed=42,
-        use_ema=True,
-        ema_beta=0.995,
-        ema_update_after_step=1,
-        ema_update_every=1,
-        apply_grad_penalty_every=4,
+        use_ema=args.use_ema,
+        ema_beta=args.ema_beta,
+        ema_update_after_step=args.ema_update_after_step,
+        ema_update_every=args.ema_update_every,
+        apply_grad_penalty_every=args.apply_grad_penaly_every,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         mixed_precision=args.mixed_precision
     )

@@ -13,7 +13,6 @@ from muse_maskgit_pytorch import (
 )
 from muse_maskgit_pytorch.dataset import get_dataset_from_dataroot, ImageTextDataset
 
-
 import argparse
 
 def parse_args():
@@ -151,8 +150,7 @@ def main():
     dataset = ImageTextDataset(dataset, args.image_size, transformer.tokenizer, image_column=args.image_column, caption_column=args.caption_column)
 
     trainer = MaskGitTrainer(
-        maskgit,
-        folder=args.data_folder,
+        maskgit,\
         num_train_steps=args.num_train_steps,
         batch_size=args.batch_size,
         image_size=args.image_size,  # you may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it
