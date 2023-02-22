@@ -19,7 +19,6 @@ from accelerate import Accelerator, DistributedType, DistributedDataParallelKwar
 
 from ema_pytorch import EMA
 import numpy as np
-from muse_maskgit_pytorch.diffusers_optimization import get_scheduler
 from muse_maskgit_pytorch.trainers.base_accelerated_trainer import BaseAcceleratedTrainer
 def noop(*args, **kwargs):
     pass
@@ -38,6 +37,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         vae: VQGanVAE,
         dataloader,
         valid_dataloader,
+        accelerator,
         *,
         current_step,
         num_train_steps,

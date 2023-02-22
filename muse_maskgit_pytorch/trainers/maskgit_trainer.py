@@ -19,7 +19,6 @@ from accelerate import Accelerator, DistributedType, DistributedDataParallelKwar
 
 from ema_pytorch import EMA
 
-from muse_maskgit_pytorch.diffusers_optimization import get_scheduler
 from muse_maskgit_pytorch.muse_maskgit_pytorch import MaskGit
 from muse_maskgit_pytorch.trainers.base_accelerated_trainer import BaseAcceleratedTrainer
 from muse_maskgit_pytorch.t5 import t5_encode_text_from_encoded
@@ -36,6 +35,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         maskgit: MaskGit,
         dataloader,
         valid_dataloader,
+        accelerator,
         *,
         current_step,
         num_train_steps,

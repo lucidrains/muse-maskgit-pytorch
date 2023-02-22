@@ -1,2 +1,3 @@
 from muse_maskgit_pytorch.trainers.vqvae_trainers import VQGanVAETrainer
 from muse_maskgit_pytorch.trainers.maskgit_trainer import MaskGitTrainer
+from muse_maskgit_pytorch.trainers.base_accelerated_trainer import get_accelerator

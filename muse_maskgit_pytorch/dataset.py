@@ -25,7 +25,7 @@ class ImageDataset(Dataset):
         )
 
     def __len__(self):
-        return len(self.paths)
+        return len(self.dataset)
 
     def __getitem__(self, index):
         image= self.dataset[index][self.image_column]
@@ -64,7 +64,7 @@ def get_dataset_from_dataroot(data_root, args):
         data_dict[args.image_column].append(image)
         data_dict[args.caption_column].append(None)
     return datasets.Dataset.from_dict(data_dict)
-def split_dataset_into_dataloaders(dataset, valid_frac=0.05, seed=42):
+def split_dataset_into_dataloaders(dataset, valid_frac=0.05, seed=42, batch_size=1):
     if valid_frac > 0:
         train_size = int((1 - valid_frac) * len(dataset))
         valid_size = len(dataset) - train_size
@@ -75,13 +75,13 @@ def split_dataset_into_dataloaders(dataset, valid_frac=0.05, seed=42):
         print(f'training with shared training and valid dataset of {len(dataset)} samples')
     dataloader = DataLoader(
         dataset,
-        batch_size = args.batch_size,
+        batch_size = batch_size,
         shuffle = True
     )
 
     validation_dataoloader = DataLoader(
         validation_dataset,
-        batch_size = args.batch_size,
+        batch_size = batch_size,
         shuffle = True
     )
     return dataloader, validation_dataoloader

@@ -7,9 +7,7 @@ import os
 from muse_maskgit_pytorch import (
     VQGanVAE,
     VQGanVAETrainer,
-    MaskGit,
-    MaskGitTransformer,
-    Muse,
+    get_accelerator
 )
 from muse_maskgit_pytorch.dataset import get_dataset_from_dataroot, ImageDataset, split_dataset_into_dataloaders
 
@@ -58,7 +56,7 @@ def parse_args():
         ),
     )
     parser.add_argument(
-        "--mixed_precisoin",
+        "--mixed_precision",
         type=str,
         default="no",
         choices=["no", "fp16", "bf16"],
@@ -128,11 +126,11 @@ def parse_args():
         help="Image size. You may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it",
     )
     # Parse the argument
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()
+    accelerator = get_accelerator(gradient_accumulation_steps=args.gradient_accumulation_steps,mixed_precision=args.mixed_precision)
     if args.train_data_dir:
         dataset = get_dataset_from_dataroot(args.train_data_dir, args)
     elif args.dataset_name:
@@ -141,11 +139,12 @@ def main():
     dataset = ImageDataset(dataset, args.image_size, image_column=args.image_column)
     # dataloader
 
-    dataloader, validation_dataloader = split_dataset_into_dataloaders(dataset, args.valid_frac, args.seed)
+    dataloader, validation_dataloader = split_dataset_into_dataloaders(dataset, args.valid_frac, args.seed, args.batch_size)
     trainer = VQGanVAETrainer(
         vae,
         dataloader,
         validation_dataloader,
+        accelerator,
         current_step=0,
         num_train_steps=args.num_train_steps,
         batch_size=args.batch_size,
@@ -162,7 +161,6 @@ def main():
         ema_update_every=args.ema_update_every,
         apply_grad_penalty_every=args.apply_grad_penaly_every,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
-        mixed_precision=args.mixed_precision
     )
 
     trainer.train()

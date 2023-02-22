@@ -93,6 +93,7 @@ class BaseAcceleratedTrainer(nn.Module):
         self,
         dataloader,
         valid_dataloader,
+        accelerator,
         *,
         current_step,
         num_train_steps,
@@ -109,7 +110,7 @@ class BaseAcceleratedTrainer(nn.Module):
         self.model=None
         # instantiate accelerator
         self.gradient_accumulation_steps = accelerate_kwargs.gradient_accumulation_steps
-        self.accelerator = get_accelerator(**accelerate_kwargs)
+        self.accelerator = accelerator
         self.results_dir = Path(results_dir)
         if len([*self.results_dir.glob("**/*")]) > 0 and yes_or_no(
             "do you want to clear previous experiment checkpoints and results?"
