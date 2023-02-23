@@ -104,12 +104,12 @@ class BaseAcceleratedTrainer(nn.Module):
         results_dir="./results",
         logging_dir="./results/logs",
         apply_grad_penalty_every=4,
-        **accelerate_kwargs,
+        gradient_accumulation_steps=1,
     ):
         super().__init__()
         self.model=None
         # instantiate accelerator
-        self.gradient_accumulation_steps = accelerate_kwargs.gradient_accumulation_steps
+        self.gradient_accumulation_steps = gradient_accumulation_steps
         self.accelerator = accelerator
         self.results_dir = Path(results_dir)
         if len([*self.results_dir.glob("**/*")]) > 0 and yes_or_no(

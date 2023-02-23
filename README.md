@@ -217,7 +217,13 @@ images = muse([
 
 images # List[PIL.Image.Image]
 ```
+## Training
 
+Training should be done in 4 stages. 
+1. Training base VAE
+```
+accelerate launch train_muse_vae.py --dataset_name="Isamu136/big-animal-dataset"
+```
 ## Appreciation
 
 - <a href="https://stability.ai/">StabilityAI</a> for the sponsorship, as well as my other sponsors, for affording me the independence to open source artificial intelligence.

@@ -47,7 +47,6 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         results_dir="./results",
         logging_dir="./results/logs",
         apply_grad_penalty_every=4,
-        accelerate_kwargs: dict = dict(),
         lr=3e-4,
         use_ema=True,
         ema_beta=0.995,
@@ -55,10 +54,9 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         ema_update_every=1,
         validation_prompt="a photo of a dog"
     ):
-        super().__init__(dataloader, valid_dataloader, current_step=current_step, num_train_steps=num_train_steps, batch_size=batch_size,\
+        super().__init__(dataloader, valid_dataloader, accelerator, current_step=current_step, num_train_steps=num_train_steps, batch_size=batch_size,\
                         gradient_accumulation_steps=gradient_accumulation_steps, max_grad_norm=max_grad_norm, save_results_every=save_results_every, \
-                        save_model_every=save_model_every, results_dir=results_dir, logging_dir=logging_dir, apply_grad_penalty_every=apply_grad_penalty_every, \
-                        accelerate_kwargs=accelerate_kwargs)
+                        save_model_every=save_model_every, results_dir=results_dir, logging_dir=logging_dir, apply_grad_penalty_every=apply_grad_penalty_every)
 
         # maskgit
         self.model = maskgit

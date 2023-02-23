@@ -163,8 +163,9 @@ def parse_args():
 
 def main():
     args = parse_args()
-    accelerator = get_accelerator(gradient_accumulation_steps=args.gradient_accumulation_steps,mixed_precision=args.mixed_precision)
-    
+    accelerator = get_accelerator(report_to=args.report_to, gradient_accumulation_steps=args.gradient_accumulation_steps,mixed_precision=args.mixed_precision)
+    if accelerator.is_main_process:
+        accelerator.init_trackers("muse_maskgit", config=vars(args))
     if args.train_data_dir:
         dataset = get_dataset_from_dataroot(args.train_data_dir, args)
     elif args.dataset_name:
