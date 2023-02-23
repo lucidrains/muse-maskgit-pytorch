@@ -25,16 +25,13 @@ def parse_args():
         "--seq_len", type=int, default=1024, help="The sequence length. Must be equivalent to fmap_size ** 2 in vae"
     )
     parser.add_argument(
-        "--dim", type=int, default=128, help="Model dimension"
-    )
-    parser.add_argument(
         "--depth", type=int, default=2, help="The depth of model"
     )
     parser.add_argument(
         "--dim_head", type=int, default=64, help="Attention head dimension"
     )
     parser.add_argument(
-        "--head", type=int, default=8, help="Attention heads"
+        "--heads", type=int, default=8, help="Attention heads"
     )
     parser.add_argument(
         "--ff_mult", type=int, default=4, help="Feed forward expansion factor"
@@ -154,6 +151,7 @@ def parse_args():
         help="Save the model every this number of steps.",
     )
     parser.add_argument("--vq_codebook_size", type=int, default=256, help="Image Size.")
+    parser.add_argument("--cond_drop_prob", type=float, default=0.5, help="Conditional dropout, for classifier free guidance.")
     parser.add_argument(
         "--image_size",
         type=int,
@@ -166,6 +164,7 @@ def parse_args():
 def main():
     args = parse_args()
     accelerator = get_accelerator(gradient_accumulation_steps=args.gradient_accumulation_steps,mixed_precision=args.mixed_precision)
+    
     if args.train_data_dir:
         dataset = get_dataset_from_dataroot(args.train_data_dir, args)
     elif args.dataset_name:
@@ -204,6 +203,7 @@ def main():
         cond_drop_prob = args.cond_drop_prob,     # conditional dropout, for classifier free guidance
         cond_image_size = args.cond_image_size
     ).cuda()
+    
     dataset = ImageTextDataset(dataset, args.image_size, transformer.tokenizer, image_column=args.image_column, caption_column=args.caption_column)
     dataloader, validation_dataloader = split_dataset_into_dataloaders(dataset, args.valid_frac, args.seed, args.batch_size)
 
