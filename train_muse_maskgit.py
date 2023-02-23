@@ -24,9 +24,6 @@ def parse_args():
     parser.add_argument(
         "--seq_len", type=int, default=1024, help="The sequence length. Must be equivalent to fmap_size ** 2 in vae"
     )
-    #parser.add_argument(
-        #"--dim", type=int, default=128, help="Model dimension"
-    #)
     parser.add_argument(
         "--depth", type=int, default=2, help="The depth of model"
     )
