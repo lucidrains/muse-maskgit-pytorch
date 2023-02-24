@@ -47,9 +47,9 @@ def parse_args():
         "--image_column", type=str, default="image", help="The column of the dataset containing an image."
     )
     parser.add_argument(
-        "--report_to",
+        "--log_with",
         type=str,
-        default="tensorboard",
+        default="wandb",
         help=(
             'The integration to report the results and logs to. Supported platforms are `"tensorboard"`'
             ' (default), `"wandb"` and `"comet_ml"`. Use `"all"` to report to all integrations.'
@@ -130,7 +130,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    accelerator = get_accelerator(report_to=args.report_to, gradient_accumulation_steps=args.gradient_accumulation_steps,mixed_precision=args.mixed_precision)
+    accelerator = get_accelerator(log_with=args.log_with, gradient_accumulation_steps=args.gradient_accumulation_steps,mixed_precision=args.mixed_precision, logging_dir=args.logging_dir)
     if accelerator.is_main_process:
         accelerator.init_trackers("muse_vae", config=vars(args))
     if args.train_data_dir:

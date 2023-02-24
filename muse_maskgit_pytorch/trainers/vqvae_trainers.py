@@ -193,8 +193,8 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
 
             # log
 
-            self.print(f"{steps}: vae loss: {logs['Train/vae_loss']} - discr loss: {logs['Train/discr_loss']}")
-        self.accelerator.log(logs, step=self.steps)
+            # self.print(f"{steps}: vae loss: {logs['Train/vae_loss']} - discr loss: {logs['Train/discr_loss']}")
+        self.accelerator.log(logs, step=steps)
 
         # update exponential moving averaged generator
 
