@@ -220,7 +220,7 @@ images # List[PIL.Image.Image]
 ## Training
 
 Training should be done in 4 stages.
-1. Training base VAE
+1. Training base VAE(swap out the dataset_name with your huggingface dataset)
 ```
 accelerate launch train_muse_vae.py --dataset_name="Isamu136/big-animal-dataset"
 ```
