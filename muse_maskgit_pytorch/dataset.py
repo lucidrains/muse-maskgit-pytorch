@@ -49,8 +49,8 @@ class ImageTextDataset(ImageDataset):
         encoded = self.tokenizer.batch_encode_plus(
             [text],
             return_tensors="pt",
-            padding="longest",
-            max_length=MAX_LENGTH,
+            padding="max_length",
+            max_length=self.tokenizer.model_max_length,
             truncation=True,
         )
 
