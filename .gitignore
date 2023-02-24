@@ -1,9 +1,12 @@
+wandb
+results
+models
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-wandb
-results
+
 # C extensions
 *.so
 

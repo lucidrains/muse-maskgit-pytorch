@@ -41,7 +41,6 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         *,
         current_step,
         num_train_steps,
-        batch_size,
         gradient_accumulation_steps=1,
         max_grad_norm=None,
         save_results_every=100,
@@ -56,7 +55,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         ema_update_after_step=0,
         ema_update_every=1,
     ):
-        super().__init__(dataloader, valid_dataloader, accelerator, current_step=current_step, num_train_steps=num_train_steps, batch_size=batch_size,\
+        super().__init__(dataloader, valid_dataloader, accelerator, current_step=current_step, num_train_steps=num_train_steps,\
                         gradient_accumulation_steps=gradient_accumulation_steps, max_grad_norm=max_grad_norm, save_results_every=save_results_every, \
                         save_model_every=save_model_every, results_dir=results_dir, logging_dir=logging_dir, apply_grad_penalty_every=apply_grad_penalty_every)
 

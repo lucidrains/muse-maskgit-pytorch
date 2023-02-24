@@ -109,7 +109,7 @@ def parse_args():
 
     # vae_trainer args
     parser.add_argument(
-        "--resume_from",
+        "--vae_path",
         type=str,
         default="",
         help="Path to the vae model. eg. 'results/vae.steps.pt'",
@@ -169,7 +169,7 @@ def main():
     if args.train_data_dir:
         dataset = get_dataset_from_dataroot(args.train_data_dir, args)
     elif args.dataset_name:
-        dataset = load_dataset(args.dataset_name)
+        dataset = load_dataset(args.dataset_name)["train"]
 
 
     vae = VQGanVAE(
@@ -177,8 +177,8 @@ def main():
         vq_codebook_size = args.vq_codebook_size
     ).cuda()
 
-    print ('Resuming VAE from: ', args.resume_from)
-    vae.load(args.resume_from)    # you will want to load the exponentially moving averaged VAE
+    print ('Resuming VAE from: ', args.vae_path)
+    vae.load(args.vae_path)    # you will want to load the exponentially moving averaged VAE
 
     # then you plug the vae and transformer into your MaskGit as so
 
@@ -216,7 +216,6 @@ def main():
         current_step=0,
         num_train_steps=args.num_train_steps,
         batch_size=args.batch_size,
-        image_size=args.image_size,  # you may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it
         lr=args.lr,
         max_grad_norm=args.max_grad_norm,
         save_results_every=args.save_results_every,
@@ -227,7 +226,7 @@ def main():
         ema_beta=args.ema_beta,
         ema_update_after_step=args.ema_update_after_step,
         ema_update_every=args.ema_update_every,
-        apply_grad_penalty_every=args.apply_grad_penaly_every,
+        apply_grad_penalty_every=args.apply_grad_penalty_every,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         validation_prompt=args.validation_prompt
     )

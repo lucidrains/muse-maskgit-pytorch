@@ -219,10 +219,14 @@ images # List[PIL.Image.Image]
 ```
 ## Training
 
-Training should be done in 4 stages. 
+Training should be done in 4 stages.
 1. Training base VAE
 ```
 accelerate launch train_muse_vae.py --dataset_name="Isamu136/big-animal-dataset"
+```
+2. Once you trained enough in the base VAE, move the checkpoint of your latest version to a new location. Then, do
+```
+accelerate launch train_muse_maskgit.py --dataset_name="Isamu136/big-animal-dataset" --vae_path=path_to_vae_checkpoint
 ```
 ## Appreciation
 

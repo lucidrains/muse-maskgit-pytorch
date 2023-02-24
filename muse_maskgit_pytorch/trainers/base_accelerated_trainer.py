@@ -97,7 +97,6 @@ class BaseAcceleratedTrainer(nn.Module):
         *,
         current_step,
         num_train_steps,
-        batch_size,
         max_grad_norm=None,
         save_results_every=100,
         save_model_every=1000,
@@ -125,7 +124,6 @@ class BaseAcceleratedTrainer(nn.Module):
 
         self.register_buffer("steps", torch.Tensor([current_step]))
         self.num_train_steps = num_train_steps
-        self.batch_size = batch_size
         self.max_grad_norm = max_grad_norm
 
         self.dl = dataloader

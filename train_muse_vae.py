@@ -149,7 +149,6 @@ def main():
         accelerator,
         current_step=0,
         num_train_steps=args.num_train_steps,
-        batch_size=args.batch_size,
         lr=args.lr,
         max_grad_norm=args.max_grad_norm,
         discr_max_grad_norm=args.discr_max_grad_norm,

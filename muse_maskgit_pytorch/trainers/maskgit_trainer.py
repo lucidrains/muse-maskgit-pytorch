@@ -54,19 +54,22 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         ema_update_every=1,
         validation_prompt="a photo of a dog"
     ):
-        super().__init__(dataloader, valid_dataloader, accelerator, current_step=current_step, num_train_steps=num_train_steps, batch_size=batch_size,\
+        super().__init__(dataloader, valid_dataloader, accelerator, current_step=current_step, num_train_steps=num_train_steps,\
                         gradient_accumulation_steps=gradient_accumulation_steps, max_grad_norm=max_grad_norm, save_results_every=save_results_every, \
                         save_model_every=save_model_every, results_dir=results_dir, logging_dir=logging_dir, apply_grad_penalty_every=apply_grad_penalty_every)
-
+        self.batch_size=batch_size
         # maskgit
         self.model = maskgit
         self.model.vae.requires_grad_(False)
+        self.model.transformer.t5.requires_grad_(False)
+
 
         all_parameters = set(maskgit.parameters())
         # don't train the vae
 
         vae_parameters = set(self.model.vae.parameters())
-        transformer_parameters = all_parameters - vae_parameters
+        t5_parameters = set(self.model.transformer.t5.parameters())
+        transformer_parameters = all_parameters - vae_parameters - t5_parameters
 
         # optimizers
 
@@ -108,8 +111,8 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         train_loss = 0
         with self.accelerator.accumulate(self.model):
             imgs, input_ids, attn_mask = next(self.dl_iter)
-            text_embeds = t5_encode_text_from_encoded(input_ids, attn_mask, self.model.t5, device)
-            imgs = imgs.to(device)
+            imgs, input_ids, attn_mask = imgs.to(device), input_ids.to(device), attn_mask.to(device)
+            text_embeds = t5_encode_text_from_encoded(input_ids, attn_mask, self.model.transformer.t5, device)
             loss = self.model(
                 imgs,
                 text_embeds=text_embeds,
@@ -129,7 +132,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
                 ema_model.update()
             logs = {"loss": train_loss}
 
-            self.accelerator.log(logs, step=self.steps)
+            self.accelerator.log(logs, steps)
 
             if steps % self.save_model_every:
                 state_dict = self.accelerator.unwrap_model(self.model).state_dict()
