@@ -55,6 +55,7 @@ class ImageTextDataset(ImageDataset):
 
 def get_dataset_from_dataroot(data_root, args):
     image_paths = list(Path(data_root).rglob("*.[jJ][pP][gG]"))
+    image_paths = [str(image_path) for image_path in image_paths]
     random.shuffle(image_paths)
     captions = ["" for _ in range(len(image_paths))]
     data_dict = {args.image_column: image_paths, args.caption_column: captions}
