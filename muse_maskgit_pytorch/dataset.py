@@ -1,14 +1,15 @@
 from torch.utils.data import Dataset
 import torchvision.transforms as T
-from PIL import ImageFile
+from PIL import Image, ImageFile
 from pathlib import Path
 from muse_maskgit_pytorch.t5 import MAX_LENGTH
 import datasets
 import random
 import torch
-ImageFile.LOAD_TRUNCATED_IMAGES = True
 from torch.utils.data import Dataset, DataLoader, random_split
-from datasets import Image
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 class ImageDataset(Dataset):
     def __init__(self, dataset, image_size, image_column="image"):
         super().__init__()
@@ -30,17 +31,21 @@ class ImageDataset(Dataset):
     def __getitem__(self, index):
         image= self.dataset[index][self.image_column]
         return self.transform(image)
+    
 class ImageTextDataset(ImageDataset):
     def __init__(self, dataset, image_size, tokenizer, image_column="image", caption_column="caption"):
         super().__init__(dataset, image_size=image_size, image_column=image_column)
         self.caption_column = caption_column
         self.tokenizer = tokenizer
+
     def __getitem__(self, index):
-        image= self.dataset[index][self.image_column]
+        image = self.dataset[index][self.image_column]
+        descriptions = self.dataset[index][self.caption_column]
+        text = random.choice(descriptions)
+        
         if self.caption_column == None:
             text = ""
-        else:
-            text = self.dataset[index][self.caption_column]
+            
         encoded = self.tokenizer.batch_encode_plus(
             [text],
             return_tensors="pt",
@@ -55,12 +60,24 @@ class ImageTextDataset(ImageDataset):
 
 def get_dataset_from_dataroot(data_root, args):
     image_paths = list(Path(data_root).rglob("*.[jJ][pP][gG]"))
-    image_paths = [str(image_path) for image_path in image_paths]
     random.shuffle(image_paths)
-    captions = ["" for _ in range(len(image_paths))]
-    data_dict = {args.image_column: image_paths, args.caption_column: captions}
-    dataset = datasets.Dataset.from_dict(data_dict).cast_column(args.image_column, Image())
+    data_dict = {args.image_column: [], args.caption_column: []}
+    dataset = datasets.Dataset.from_dict(data_dict)
+    for image_path in image_paths:
+        image = Image.open(image_path)
+        if not image.mode == "RGB":
+            image = image.convert("RGB")
+        feature = datasets.Image(decode=False)
+        
+        caption_path = image_path.with_suffix(".txt")
+        captions = caption_path.read_text().split('\n')
+        captions = list(filter(lambda t: len(t) > 0, captions))
+        
+        dataset = dataset.add_item({args.image_column: feature.encode_example(image), args.caption_column: captions})
+
+    dataset = dataset.cast_column(args.image_column, datasets.Image())
     return dataset
+
 def split_dataset_into_dataloaders(dataset, valid_frac=0.05, seed=42, batch_size=1):
     if valid_frac > 0:
         train_size = int((1 - valid_frac) * len(dataset))
@@ -76,9 +93,9 @@ def split_dataset_into_dataloaders(dataset, valid_frac=0.05, seed=42, batch_size
         shuffle = True
     )
 
-    validation_dataoloader = DataLoader(
+    validation_dataloader = DataLoader(
         validation_dataset,
         batch_size = batch_size,
         shuffle = True
     )
-    return dataloader, validation_dataoloader
+    return dataloader, validation_dataloader
