@@ -139,6 +139,12 @@ def parse_args():
         "--gradient_accumulation_steps", type=int, default=1, help="Gradient Accumulation."
     )
     parser.add_argument(
+        "--log_model_every",
+        type=int,
+        default=100,
+        help="Log model every this number of steps.",
+    )
+    parser.add_argument(
         "--save_results_every",
         type=int,
         default=100,
@@ -228,7 +234,8 @@ def main():
         ema_update_every=args.ema_update_every,
         apply_grad_penalty_every=args.apply_grad_penalty_every,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
-        validation_prompt=args.validation_prompt
+        validation_prompt=args.validation_prompt,
+        log_model_every=args.log_model_every
     )
 
     trainer.train()

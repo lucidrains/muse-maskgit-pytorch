@@ -51,19 +51,19 @@ class ImageTextDataset(ImageDataset):
 
         input_ids = encoded.input_ids
         attn_mask = encoded.attention_mask
-        return self.transform(image), input_ids, attn_mask
+        return self.transform(image), input_ids[0], attn_mask[0]
 
 def get_dataset_from_dataroot(data_root, args):
     image_paths = list(Path(data_root).rglob("*.[jJ][pP][gG]"))
     random.shuffle(image_paths)
     data_dict = {args.image_column: [], args.caption_column: []}
+    dataset = datasets.Dataset.from_dict(data_dict)
     for image_path in image_paths:
         image = Image.open(image_path)
         if not image.mode == "RGB":
             image = image.convert("RGB")
-        data_dict[args.image_column].append(image)
-        data_dict[args.caption_column].append(None)
-    return datasets.Dataset.from_dict(data_dict)
+        dataset.add_item({args.image_column: image, args.caption_column: None})
+    return dataset
 def split_dataset_into_dataloaders(dataset, valid_frac=0.05, seed=42, batch_size=1):
     if valid_frac > 0:
         train_size = int((1 - valid_frac) * len(dataset))

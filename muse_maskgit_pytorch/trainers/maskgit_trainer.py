@@ -52,11 +52,13 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         ema_beta=0.995,
         ema_update_after_step=0,
         ema_update_every=1,
+        log_model_every=100,
         validation_prompt="a photo of a dog"
     ):
         super().__init__(dataloader, valid_dataloader, accelerator, current_step=current_step, num_train_steps=num_train_steps,\
                         gradient_accumulation_steps=gradient_accumulation_steps, max_grad_norm=max_grad_norm, save_results_every=save_results_every, \
                         save_model_every=save_model_every, results_dir=results_dir, logging_dir=logging_dir, apply_grad_penalty_every=apply_grad_penalty_every)
+        self.log_model_every=log_model_every
         self.batch_size=batch_size
         # maskgit
         self.model = maskgit
@@ -115,9 +117,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
             text_embeds = t5_encode_text_from_encoded(input_ids, attn_mask, self.model.transformer.t5, device)
             loss = self.model(
                 imgs,
-                text_embeds=text_embeds,
-                add_gradient_penalty = apply_grad_penalty,
-                return_loss = True
+                text_embeds=text_embeds
             )
             avg_loss = self.accelerator.gather(loss.repeat(self.batch_size)).mean()
             train_loss += avg_loss.item() / self.gradient_accumulation_steps

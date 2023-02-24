@@ -66,7 +66,7 @@ def t5_encode_text_from_encoded(input_ids,
     device = next(t5.parameters()).device
 
     t5.eval()
-
+    input_ids, attn_mask = input_ids.to(device), attn_mask.to(device)
     with torch.no_grad():
         output = t5(input_ids = input_ids, attention_mask = attn_mask)
         encoded_text = output.last_hidden_state.detach()
@@ -96,4 +96,4 @@ def t5_encode_text(
         max_length = MAX_LENGTH,
         truncation = True
     )
-    return t5_encode_text_from_encoded(encoded.input_ids, encoded.attn_mask, t5, output_device)
+    return t5_encode_text_from_encoded(encoded["input_ids"], encoded["attention_mask"], t5, output_device)
