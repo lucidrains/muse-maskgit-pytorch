@@ -41,10 +41,12 @@ class ImageTextDataset(ImageDataset):
     def __getitem__(self, index):
         image = self.dataset[index][self.image_column]
         descriptions = self.dataset[index][self.caption_column]
-        text = random.choice(descriptions)
-        
-        if self.caption_column == None:
+        if args.caption_column == None or descriptions == None:
             text = ""
+        elif isinstance(descriptions, list):
+            text = random.choice(descriptions)
+        else:
+            text = descriptions
             
         encoded = self.tokenizer.batch_encode_plus(
             [text],
@@ -63,17 +65,12 @@ def get_dataset_from_dataroot(data_root, args):
     random.shuffle(image_paths)
     data_dict = {args.image_column: [], args.caption_column: []}
     dataset = datasets.Dataset.from_dict(data_dict)
-    for image_path in image_paths:
-        image = Image.open(image_path)
-        if not image.mode == "RGB":
-            image = image.convert("RGB")
-        feature = datasets.Image(decode=False)
-        
+    for image_path in image_paths:        
         caption_path = image_path.with_suffix(".txt")
         captions = caption_path.read_text().split('\n')
         captions = list(filter(lambda t: len(t) > 0, captions))
         
-        dataset = dataset.add_item({args.image_column: feature.encode_example(image), args.caption_column: captions})
+        dataset = dataset.add_item({args.image_column: image_path, args.caption_column: captions})
 
     dataset = dataset.cast_column(args.image_column, datasets.Image())
     return dataset
