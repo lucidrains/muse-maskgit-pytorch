@@ -19,6 +19,9 @@ def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        '--dataset_save_path', type=str, default="dataset", help="Path to save the dataset if you are making one from a directory"
+    )
+    parser.add_argument(
         "--clear_previous_experiments", action="store_true", help="Whether to clear previous experiments."
     )
     parser.add_argument(
@@ -176,7 +179,7 @@ def main():
     if accelerator.is_main_process:
         accelerator.init_trackers("muse_maskgit", config=vars(args))
     if args.train_data_dir:
-        dataset = get_dataset_from_dataroot(args.train_data_dir, args)
+        dataset = get_dataset_from_dataroot(args.train_data_dir, image_column=args.image_column, caption_column=args.caption_column, save_path=args.dataset_save_path)
     elif args.dataset_name:
         dataset = load_dataset(args.dataset_name)["train"]
 
