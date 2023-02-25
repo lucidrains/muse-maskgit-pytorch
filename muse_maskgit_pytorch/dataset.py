@@ -67,7 +67,7 @@ class ImageTextDataset(ImageDataset):
 
 def get_dataset_from_dataroot(data_root, image_column="image", caption_column="caption", save_path="dataset"):
     if os.path.exists(save_path):
-        return load_from_disk(save_path)["train"]
+        return load_from_disk(save_path)
     image_paths = list(Path(data_root).rglob("*.[jJ][pP][gG]"))
     random.shuffle(image_paths)
     data_dict = {image_column: [], caption_column: []}
@@ -82,7 +82,6 @@ def get_dataset_from_dataroot(data_root, image_column="image", caption_column="c
         data_dict[image_column].append(image_path)
         data_dict[caption_column].append(captions)
     dataset = datasets.Dataset.from_dict(data_dict)
-
     dataset = dataset.cast_column(image_column, Image())
     dataset.save_to_disk(save_path)
     return dataset
