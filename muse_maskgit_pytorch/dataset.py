@@ -71,8 +71,6 @@ def get_dataset_from_dataroot(data_root, image_column="image", caption_column="c
     image_paths = list(Path(data_root).rglob("*.[jJ][pP][gG]"))
     random.shuffle(image_paths)
     data_dict = {image_column: [], caption_column: []}
-    image_paths = []
-    captions = []
     for image_path in tqdm(image_paths):
         caption_path = image_path.with_suffix(".txt")
         if os.path.exists(str(caption_path)):
