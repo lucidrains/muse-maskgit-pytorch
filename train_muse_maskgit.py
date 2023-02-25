@@ -171,10 +171,10 @@ def parse_args():
         help="Image size. You may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it",
     )
     parser.add_argument(
-        "--maskgit_path",
+        "--resume_path",
         type=str,
         default="",
-        help="Path to the maskgit transformer model. eg. 'results/maskgit.steps.pt'",
+        help="Path to the last saved checkpoint. 'results/maskgit.steps.pt'",
     )
     
     # Parse the argument
@@ -196,23 +196,9 @@ def main():
         vq_codebook_size = args.vq_codebook_size
     ).to(accelerator.device)
 
-    #print ('Resuming VAE from: ', args.vae_path)
-    #vae.load(args.vae_path)    # you will want to load the exponentially moving averaged VAE
+    print ('Resuming VAE from: ', args.vae_path)
+    vae.load(args.vae_path)    # you will want to load the exponentially moving averaged VAE
     
-    # load the vae from disk if we have previously trained one
-    if args.vae_path:        
-        print (f'Resuming VAE from: {args.vae_path}')
-        vae.load(args.vae_path)
-
-        resume_from_parts = args.vae_path.split('.')
-        for i in range(len(resume_from_parts)-1, -1, -1):
-            if resume_from_parts[i].isdigit():
-                current_step = int(resume_from_parts[i])
-                print(f"Found step {current_step} for the VAE model.")
-                break
-        if current_step == 0:
-            print("No step found for the VAE model.")
-
     # then you plug the vae and transformer into your MaskGit as so
 
     # (1) create your transformer / attention network
@@ -240,11 +226,11 @@ def main():
     ).to(accelerator.device)
     
     # load the maskgit transformer from disk if we have previously trained one
-    if args.maskgit_path:
-        print (f'Resuming MaskGit from: {args.maskgit_path}')
-        maskgit.load(args.maskgit_path)
+    if args.resume_path:
+        print (f'Resuming MaskGit from: {args.resume_path}')
+        maskgit.load(args.resume_path)
 
-        resume_from_parts = args.maskgit_path.split('.')
+        resume_from_parts = args.resume_path.split('.')
         for i in range(len(resume_from_parts)-1, -1, -1):
             if resume_from_parts[i].isdigit():
                 current_step = int(resume_from_parts[i])
