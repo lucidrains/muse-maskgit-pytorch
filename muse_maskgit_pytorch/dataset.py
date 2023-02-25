@@ -9,6 +9,7 @@ import random
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 import os
+from tqdm import tqdm
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 class ImageDataset(Dataset):
@@ -69,7 +70,7 @@ def get_dataset_from_dataroot(data_root, args):
     random.shuffle(image_paths)
     data_dict = {args.image_column: [], args.caption_column: []}
     dataset = datasets.Dataset.from_dict(data_dict)
-    for image_path in image_paths:
+    for image_path in tqdm(image_paths):
         caption_path = image_path.with_suffix(".txt")
         image_path = str(image_path)
         if os.path.exists(str(caption_path)):
