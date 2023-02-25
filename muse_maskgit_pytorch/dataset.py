@@ -1,9 +1,10 @@
 from torch.utils.data import Dataset
 import torchvision.transforms as T
-from PIL import Image, ImageFile
+from PIL import ImageFile
 from pathlib import Path
 from muse_maskgit_pytorch.t5 import MAX_LENGTH
 import datasets
+from datasets import Image
 import random
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
@@ -72,7 +73,7 @@ def get_dataset_from_dataroot(data_root, args):
         
         dataset = dataset.add_item({args.image_column: image_path, args.caption_column: captions})
 
-    dataset = dataset.cast_column(args.image_column, datasets.Image())
+    dataset = dataset.cast_column(args.image_column, Image())
     return dataset
 
 def split_dataset_into_dataloaders(dataset, valid_frac=0.05, seed=42, batch_size=1):
