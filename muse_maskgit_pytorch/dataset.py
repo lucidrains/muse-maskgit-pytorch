@@ -72,8 +72,7 @@ def get_dataset_from_dataroot(data_root, args):
     for image_path in image_paths:
         caption_path = image_path.with_suffix(".txt")
         image_path = str(image_path)
-        caption_path = str(caption_path)
-        if os.path.exists(caption_path):
+        if os.path.exists(str(caption_path)):
             captions = caption_path.read_text().split('\n')
             captions = list(filter(lambda t: len(t) > 0, captions))
         else:
