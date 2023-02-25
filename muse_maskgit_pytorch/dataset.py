@@ -48,12 +48,12 @@ class ImageTextDataset(ImageDataset):
             text = random.choice(descriptions)
         else:
             text = descriptions
-            
+        # max length from the paper
         encoded = self.tokenizer.batch_encode_plus(
             [text],
             return_tensors="pt",
             padding="max_length",
-            max_length=self.tokenizer.model_max_length,
+            max_length=MAX_LENGTH,
             truncation=True,
         )
 
