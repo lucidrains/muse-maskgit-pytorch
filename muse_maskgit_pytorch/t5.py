@@ -60,10 +60,8 @@ def t5_encode_text_from_encoded(input_ids,
                                 attn_mask,
                                 t5,
                                 output_device):
-    if torch.cuda.is_available():
-        t5 = t5.cuda()
 
-    device = next(t5.parameters()).device
+    device = output_device
 
     t5.eval()
     input_ids, attn_mask = input_ids.to(device), attn_mask.to(device)

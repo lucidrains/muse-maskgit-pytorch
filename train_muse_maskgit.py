@@ -181,7 +181,7 @@ def main():
     vae = VQGanVAE(
         dim = args.dim,
         vq_codebook_size = args.vq_codebook_size
-    ).cuda()
+    ).to(accelerator.device)
 
     print ('Resuming VAE from: ', args.vae_path)
     vae.load(args.vae_path)    # you will want to load the exponentially moving averaged VAE
@@ -209,8 +209,8 @@ def main():
         image_size = args.image_size,          # image size
         cond_drop_prob = args.cond_drop_prob,     # conditional dropout, for classifier free guidance
         cond_image_size = args.cond_image_size
-    ).cuda()
-    
+    ).to(accelerator.device)
+
     dataset = ImageTextDataset(dataset, args.image_size, transformer.tokenizer, image_column=args.image_column, caption_column=args.caption_column)
     dataloader, validation_dataloader = split_dataset_into_dataloaders(dataset, args.valid_frac, args.seed, args.batch_size)
 
