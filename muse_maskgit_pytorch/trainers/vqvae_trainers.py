@@ -137,7 +137,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         device = self.device
 
         steps = int(self.steps.item())
-        apply_grad_penalty = not (steps % self.apply_grad_penalty_every)
+        apply_grad_penalty = (steps % self.apply_grad_penalty_every) == 0
 
         self.model.train()
         discr = self.model.module.discr if self.is_distributed else self.model.discr
@@ -202,7 +202,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
 
         # sample results every so often
 
-        if not (steps % self.save_results_every):
+        if (steps % self.save_results_every) == 0:
             vaes_to_evaluate = ((self.model, str(steps)),)
 
             if self.use_ema:
@@ -214,7 +214,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
 
         # save model every so often
         self.accelerator.wait_for_everyone()
-        if self.is_main and not (steps % self.save_model_every):
+        if self.is_main and (steps % self.save_model_every) == 0:
             state_dict = self.accelerator.unwrap_model(self.model).state_dict()
             model_path = str(self.results_dir / f'vae.{steps}.pt')
             self.accelerator.save(state_dict, model_path)
