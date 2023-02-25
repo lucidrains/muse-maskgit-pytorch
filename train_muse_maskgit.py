@@ -173,10 +173,9 @@ def parse_args():
     parser.add_argument(
         "--resume_path",
         type=str,
-        default="",
+        default=None,
         help="Path to the last saved checkpoint. 'results/maskgit.steps.pt'",
     )
-    
     # Parse the argument
     return parser.parse_args()
 
@@ -214,7 +213,7 @@ def main():
         t5_name = args.t5_name,               # name of your T5
     ).to(accelerator.device)
     transformer.t5.to(accelerator.device)
-    
+
     # (2) pass your trained VAE and the base transformer to MaskGit
 
     maskgit = MaskGit(
@@ -224,7 +223,7 @@ def main():
         cond_drop_prob = args.cond_drop_prob,     # conditional dropout, for classifier free guidance
         cond_image_size = args.cond_image_size
     ).to(accelerator.device)
-    
+
     # load the maskgit transformer from disk if we have previously trained one
     if args.resume_path:
         print (f'Resuming MaskGit from: {args.resume_path}')
@@ -237,7 +236,7 @@ def main():
                 print(f"Found step {current_step} for the MaskGit model.")
                 break
         if current_step == 0:
-            print("No step found for the MaskGit model.")    
+            print("No step found for the MaskGit model.")
 
     dataset = ImageTextDataset(dataset, args.image_size, transformer.tokenizer, image_column=args.image_column, caption_column=args.caption_column)
     dataloader, validation_dataloader = split_dataset_into_dataloaders(dataset, args.valid_frac, args.seed, args.batch_size)

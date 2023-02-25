@@ -137,6 +137,12 @@ def parse_args():
         default=256,
         help="Image size. You may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it",
     )
+    parser.add_argument(
+        "--resume_path",
+        type=str,
+        default=None,
+        help="Path to the last saved checkpoint. 'results/vae.steps.pt'",
+    )
     # Parse the argument
     return parser.parse_args()
 
@@ -150,6 +156,18 @@ def main():
     elif args.dataset_name:
         dataset = load_dataset(args.dataset_name)["train"]
     vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
+    if args.resume_path:
+        print (f'Resuming VAE from: {args.resume_path}')
+        vae.load(args.resume_path)
+
+        resume_from_parts = args.resume_path.split('.')
+        for i in range(len(resume_from_parts)-1, -1, -1):
+            if resume_from_parts[i].isdigit():
+                current_step = int(resume_from_parts[i])
+                print(f"Found step {current_step} for the VAE model.")
+                break
+        if current_step == 0:
+            print("No step found for the VAE model.")
     dataset = ImageDataset(dataset, args.image_size, image_column=args.image_column)
     # dataloader
 
