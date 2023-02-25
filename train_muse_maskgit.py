@@ -170,6 +170,13 @@ def parse_args():
         default=256,
         help="Image size. You may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it",
     )
+    parser.add_argument(
+        "--maskgit_path",
+        type=str,
+        default="",
+        help="Path to the maskgit transformer model. eg. 'results/maskgit.steps.pt'",
+    )
+    
     # Parse the argument
     return parser.parse_args()
 
@@ -189,8 +196,22 @@ def main():
         vq_codebook_size = args.vq_codebook_size
     ).to(accelerator.device)
 
-    print ('Resuming VAE from: ', args.vae_path)
-    vae.load(args.vae_path)    # you will want to load the exponentially moving averaged VAE
+    #print ('Resuming VAE from: ', args.vae_path)
+    #vae.load(args.vae_path)    # you will want to load the exponentially moving averaged VAE
+    
+    # load the vae from disk if we have previously trained one
+    if args.vae_path:        
+        print (f'Resuming VAE from: {args.vae_path}')
+        vae.load(args.vae_path)
+
+        resume_from_parts = args.vae_path.split('.')
+        for i in range(len(resume_from_parts)-1, -1, -1):
+            if resume_from_parts[i].isdigit():
+                current_step = int(resume_from_parts[i])
+                print(f"Found step {current_step} for the VAE model.")
+                break
+        if current_step == 0:
+            print("No step found for the VAE model.")
 
     # then you plug the vae and transformer into your MaskGit as so
 
@@ -207,6 +228,7 @@ def main():
         t5_name = args.t5_name,               # name of your T5
     ).to(accelerator.device)
     transformer.t5.to(accelerator.device)
+    
     # (2) pass your trained VAE and the base transformer to MaskGit
 
     maskgit = MaskGit(
@@ -216,6 +238,20 @@ def main():
         cond_drop_prob = args.cond_drop_prob,     # conditional dropout, for classifier free guidance
         cond_image_size = args.cond_image_size
     ).to(accelerator.device)
+    
+    # load the maskgit transformer from disk if we have previously trained one
+    if args.maskgit_path:
+        print (f'Resuming MaskGit from: {args.maskgit_path}')
+        maskgit.load(args.maskgit_path)
+
+        resume_from_parts = args.maskgit_path.split('.')
+        for i in range(len(resume_from_parts)-1, -1, -1):
+            if resume_from_parts[i].isdigit():
+                current_step = int(resume_from_parts[i])
+                print(f"Found step {current_step} for the MaskGit model.")
+                break
+        if current_step == 0:
+            print("No step found for the MaskGit model.")    
 
     dataset = ImageTextDataset(dataset, args.image_size, transformer.tokenizer, image_column=args.image_column, caption_column=args.caption_column)
     dataloader, validation_dataloader = split_dataset_into_dataloaders(dataset, args.valid_frac, args.seed, args.batch_size)
@@ -225,7 +261,7 @@ def main():
         dataloader,
         validation_dataloader,
         accelerator,
-        current_step=0,
+        current_step=current_step,
         num_train_steps=args.num_train_steps,
         batch_size=args.batch_size,
         lr=args.lr,
