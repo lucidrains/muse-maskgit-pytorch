@@ -75,7 +75,7 @@ def get_dataset_from_dataroot(data_root, args):
             captions = caption_path.read_text().split('\n')
             captions = list(filter(lambda t: len(t) > 0, captions))
         else:
-            captions
+            captions = []
 
         dataset = dataset.add_item({args.image_column: image_path, args.caption_column: captions})
 
