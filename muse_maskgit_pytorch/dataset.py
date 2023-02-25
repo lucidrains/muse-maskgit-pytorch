@@ -70,6 +70,7 @@ def get_dataset_from_dataroot(data_root, args):
     data_dict = {args.image_column: [], args.caption_column: []}
     dataset = datasets.Dataset.from_dict(data_dict)
     for image_path in image_paths:
+        image_path = str(image_path)
         caption_path = image_path.with_suffix(".txt")
         if os.path.exists(caption_path):
             captions = caption_path.read_text().split('\n')
