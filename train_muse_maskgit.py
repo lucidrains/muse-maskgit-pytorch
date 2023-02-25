@@ -198,7 +198,7 @@ def main():
 
     print ('Resuming VAE from: ', args.vae_path)
     vae.load(args.vae_path)    # you will want to load the exponentially moving averaged VAE
-    
+
     # then you plug the vae and transformer into your MaskGit as so
 
     # (1) create your transformer / attention network
