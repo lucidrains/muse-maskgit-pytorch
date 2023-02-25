@@ -8,7 +8,7 @@ from datasets import Image
 import random
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
-
+import os
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 class ImageDataset(Dataset):
@@ -32,7 +32,7 @@ class ImageDataset(Dataset):
     def __getitem__(self, index):
         image= self.dataset[index][self.image_column]
         return self.transform(image)
-    
+
 class ImageTextDataset(ImageDataset):
     def __init__(self, dataset, image_size, tokenizer, image_column="image", caption_column="caption"):
         super().__init__(dataset, image_size=image_size, image_column=image_column)
@@ -42,10 +42,13 @@ class ImageTextDataset(ImageDataset):
     def __getitem__(self, index):
         image = self.dataset[index][self.image_column]
         descriptions = self.dataset[index][self.caption_column]
-        if args.caption_column == None or descriptions == None:
+        if self.caption_column == None or descriptions == None:
             text = ""
         elif isinstance(descriptions, list):
-            text = random.choice(descriptions)
+            if len(descriptions) == 0:
+                text = ""
+            else:
+                text = random.choice(descriptions)
         else:
             text = descriptions
         # max length from the paper
@@ -66,11 +69,14 @@ def get_dataset_from_dataroot(data_root, args):
     random.shuffle(image_paths)
     data_dict = {args.image_column: [], args.caption_column: []}
     dataset = datasets.Dataset.from_dict(data_dict)
-    for image_path in image_paths:        
+    for image_path in image_paths:
         caption_path = image_path.with_suffix(".txt")
-        captions = caption_path.read_text().split('\n')
-        captions = list(filter(lambda t: len(t) > 0, captions))
-        
+        if os.path.exists(caption_path):
+            captions = caption_path.read_text().split('\n')
+            captions = list(filter(lambda t: len(t) > 0, captions))
+        else:
+            captions
+
         dataset = dataset.add_item({args.image_column: image_path, args.caption_column: captions})
 
     dataset = dataset.cast_column(args.image_column, Image())
