@@ -17,6 +17,9 @@ def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--clear_previous_experiments", action="store_true", help="Whether to clear previous experiments."
+    )
+    parser.add_argument(
         "--max_grad_norm", type=float, default=None, help="Max gradient norm."
     )
     parser.add_argument(
@@ -162,6 +165,7 @@ def main():
         ema_update_every=args.ema_update_every,
         apply_grad_penalty_every=args.apply_grad_penalty_every,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
+        clear_previous_experiments=args.clear_previous_experiments
     )
 
     trainer.train()

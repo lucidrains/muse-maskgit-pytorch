@@ -19,6 +19,9 @@ def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--clear_previous_experiments", action="store_true", help="Whether to clear previous experiments."
+    )
+    parser.add_argument(
         "--num_tokens", type=int, default=256, help="Number of tokens. Must be same as codebook size above"
     )
     parser.add_argument(
@@ -199,8 +202,8 @@ def main():
         heads = args.heads,                   # attention heads,
         ff_mult = args.ff_mult,               # feedforward expansion factor
         t5_name = args.t5_name,               # name of your T5
-    )
-
+    ).to(accelerator.device)
+    transformer.t5.to(accelerator.device)
     # (2) pass your trained VAE and the base transformer to MaskGit
 
     maskgit = MaskGit(
@@ -235,7 +238,8 @@ def main():
         apply_grad_penalty_every=args.apply_grad_penalty_every,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         validation_prompt=args.validation_prompt,
-        log_model_every=args.log_model_every
+        log_model_every=args.log_model_every,
+        clear_previous_experiments=args.clear_previous_experiments
     )
 
     trainer.train()

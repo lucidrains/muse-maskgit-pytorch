@@ -60,10 +60,7 @@ def t5_encode_text_from_encoded(input_ids,
                                 attn_mask,
                                 t5,
                                 output_device):
-
-    device = output_device
-
-    t5.eval()
+    device = t5.device
     input_ids, attn_mask = input_ids.to(device), attn_mask.to(device)
     with torch.no_grad():
         output = t5(input_ids = input_ids, attention_mask = attn_mask)
@@ -90,7 +87,7 @@ def t5_encode_text(
     encoded = tokenizer.batch_encode_plus(
         texts,
         return_tensors = "pt",
-        padding = 'longest',
+        padding = 'max_length',
         max_length = MAX_LENGTH,
         truncation = True
     )

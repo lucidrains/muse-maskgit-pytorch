@@ -104,6 +104,7 @@ class BaseAcceleratedTrainer(nn.Module):
         logging_dir="./results/logs",
         apply_grad_penalty_every=4,
         gradient_accumulation_steps=1,
+        clear_previous_experiments=False,
     ):
         super().__init__()
         self.model=None
@@ -111,9 +112,7 @@ class BaseAcceleratedTrainer(nn.Module):
         self.gradient_accumulation_steps = gradient_accumulation_steps
         self.accelerator = accelerator
         self.results_dir = Path(results_dir)
-        if len([*self.results_dir.glob("**/*")]) > 0 and yes_or_no(
-            "do you want to clear previous experiment checkpoints and results?"
-        ):
+        if clear_previous_experiments:
             rmtree(str(self.results_dir))
         self.results_dir.mkdir(parents=True, exist_ok=True)
 

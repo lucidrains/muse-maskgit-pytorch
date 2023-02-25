@@ -220,6 +220,7 @@ class Transformer(nn.Module):
         # text conditioning
 
         self.t5, self.tokenizer= get_model_and_tokenizer(t5_name)
+        self.t5.eval()
         self.encode_text = partial(t5_encode_text, tokenizer = self.tokenizer, t5=self.t5)
         text_embed_dim = get_encoded_dim(t5_name)
 

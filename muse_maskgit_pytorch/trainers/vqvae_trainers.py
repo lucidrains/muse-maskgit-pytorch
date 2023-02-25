@@ -54,10 +54,12 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         ema_beta=0.995,
         ema_update_after_step=0,
         ema_update_every=1,
+        clear_previous_experiments=False
     ):
         super().__init__(dataloader, valid_dataloader, accelerator, current_step=current_step, num_train_steps=num_train_steps,\
                         gradient_accumulation_steps=gradient_accumulation_steps, max_grad_norm=max_grad_norm, save_results_every=save_results_every, \
-                        save_model_every=save_model_every, results_dir=results_dir, logging_dir=logging_dir, apply_grad_penalty_every=apply_grad_penalty_every)
+                        save_model_every=save_model_every, results_dir=results_dir, logging_dir=logging_dir, apply_grad_penalty_every=apply_grad_penalty_every,\
+                        clear_previous_experiments=clear_previous_experiments)
 
         # vae
         self.model = vae
