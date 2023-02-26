@@ -180,7 +180,7 @@ def main():
         dataloader,
         validation_dataloader,
         accelerator,
-        current_step=0,
+        current_step=current_step,
         num_train_steps=args.num_train_steps,
         lr=args.lr,
         lr_scheduler = args.lr_scheduler,
