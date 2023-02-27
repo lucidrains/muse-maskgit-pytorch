@@ -173,6 +173,9 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
             if self.use_ema:
                 ema_model.update()
             logs = {"loss": train_loss, "lr": self.lr_scheduler.get_last_lr()[0]}
+            self.print(
+                f"{steps}: maskgit loss: {logs['loss']} - lr: {self.lr_scheduler.get_last_lr()[0]}"
+            )
             self.accelerator.log(logs, steps)
             if steps % self.save_model_every == 0:
                 state_dict = self.accelerator.unwrap_model(self.model).state_dict()
