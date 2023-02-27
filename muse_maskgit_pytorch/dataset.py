@@ -15,19 +15,22 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 class ImageDataset(Dataset):
-    def __init__(self, dataset, image_size, image_column="image"):
+    def __init__(
+        self, dataset, image_size, image_column="image", flip=True, center_crop=True
+    ):
         super().__init__()
         self.dataset = dataset
         self.image_column = image_column
-        self.transform = T.Compose(
-            [
-                T.Lambda(lambda img: img.convert("RGB") if img.mode != "RGB" else img),
-                T.Resize(image_size),
-                T.RandomHorizontalFlip(),
-                T.CenterCrop(image_size),
-                T.ToTensor(),
-            ]
-        )
+        transform_list = [
+            T.Lambda(lambda img: img.convert("RGB") if img.mode != "RGB" else img),
+            T.Resize(image_size),
+        ]
+        if flip:
+            transform_list.append(T.RandomHorizontalFlip())
+        if center_crop:
+            transform_list.append(T.CenterCrop(image_size))
+        transform_list.append(T.ToTensor())
+        self.transform = T.Compose(transform_list)
 
     def __len__(self):
         return len(self.dataset)
@@ -45,8 +48,16 @@ class ImageTextDataset(ImageDataset):
         tokenizer,
         image_column="image",
         caption_column=None,
+        flip=True,
+        center_crop=True,
     ):
-        super().__init__(dataset, image_size=image_size, image_column=image_column)
+        super().__init__(
+            dataset,
+            image_size=image_size,
+            image_column=image_column,
+            flip=flip,
+            center_crop=center_crop,
+        )
         self.caption_column = caption_column
         self.tokenizer = tokenizer
 
