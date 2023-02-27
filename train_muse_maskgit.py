@@ -286,6 +286,9 @@ def main():
                 break
         if current_step == 0:
             print("No step found for the MaskGit model.")
+    else:
+        print("No step found for the MaskGit model.")
+        current_step = 0
 
     dataset = ImageTextDataset(
         dataset,
@@ -307,7 +310,7 @@ def main():
         num_train_steps=args.num_train_steps,
         batch_size=args.batch_size,
         lr=args.lr,
-        lr_scheduler=args.lr_scheduler,
+        lr_scheduler_type=args.lr_scheduler,
         lr_warmup_steps=args.lr_warmup_steps,
         max_grad_norm=args.max_grad_norm,
         save_results_every=args.save_results_every,
