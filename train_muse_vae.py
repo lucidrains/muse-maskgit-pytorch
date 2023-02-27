@@ -19,14 +19,14 @@ def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--center_crop",
+        "--no_center_crop",
         action="store_true",
-        help="Whether to center crop.",
+        help="Don't do center crop.",
     )
     parser.add_argument(
-        "--flip",
+        "--no_flip",
         action="store_true",
-        help="Flip image.",
+        help="Don't flip image.",
     )
     parser.add_argument(
         "--dataset_save_path",
@@ -216,8 +216,8 @@ def main():
         dataset,
         args.image_size,
         image_column=args.image_column,
-        center_crop=args.center_crop,
-        flip=args.flip,
+        center_crop=not args.no_center_crop,
+        flip=not args.no_flip,
     )
     # dataloader
 
