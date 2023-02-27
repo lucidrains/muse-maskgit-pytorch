@@ -4,53 +4,66 @@ from torchvision.utils import save_image
 from pathlib import Path
 from datasets import load_dataset
 import os
-from muse_maskgit_pytorch import (
-    VQGanVAE,
-    VQGanVAETrainer,
-    get_accelerator
+from muse_maskgit_pytorch import VQGanVAE, VQGanVAETrainer, get_accelerator
+from muse_maskgit_pytorch.dataset import (
+    get_dataset_from_dataroot,
+    ImageDataset,
+    split_dataset_into_dataloaders,
 )
-from muse_maskgit_pytorch.dataset import get_dataset_from_dataroot, ImageDataset, split_dataset_into_dataloaders
 
 
 import argparse
+
+
 def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--dataset_save_path', type=str, default="dataset", help="Path to save the dataset if you are making one from a directory"
+        "--dataset_save_path",
+        type=str,
+        default="dataset",
+        help="Path to save the dataset if you are making one from a directory",
     )
     parser.add_argument(
-        "--clear_previous_experiments", action="store_true", help="Whether to clear previous experiments."
+        "--clear_previous_experiments",
+        action="store_true",
+        help="Whether to clear previous experiments.",
     )
     parser.add_argument(
         "--max_grad_norm", type=float, default=None, help="Max gradient norm."
     )
     parser.add_argument(
-        "--discr_max_grad_norm", type=float, default=None, help="Max gradient norm for discriminator."
+        "--discr_max_grad_norm",
+        type=float,
+        default=None,
+        help="Max gradient norm for discriminator.",
     )
-    parser.add_argument(
-        "--seed", type=int, default=42, help="Seed."
-    )
+    parser.add_argument("--seed", type=int, default=42, help="Seed.")
     parser.add_argument(
         "--valid_frac", type=float, default=0.05, help="validation fraction."
     )
-    parser.add_argument(
-        "--use_ema", action="store_true", help="Whether to use ema."
-    )
-    parser.add_argument(
-        "--ema_beta", type=float, default=0.995, help="Ema beta."
-    )
+    parser.add_argument("--use_ema", action="store_true", help="Whether to use ema.")
+    parser.add_argument("--ema_beta", type=float, default=0.995, help="Ema beta.")
     parser.add_argument(
         "--ema_update_after_step", type=int, default=1, help="Ema update after step."
     )
     parser.add_argument(
-        "--ema_update_every", type=int, default=1, help="Ema update every this number of steps."
+        "--ema_update_every",
+        type=int,
+        default=1,
+        help="Ema update every this number of steps.",
     )
     parser.add_argument(
-        "--apply_grad_penalty_every", type=int, default=4, help="Apply gradient penalty every this number of steps."
+        "--apply_grad_penalty_every",
+        type=int,
+        default=4,
+        help="Apply gradient penalty every this number of steps.",
     )
     parser.add_argument(
-        "--image_column", type=str, default="image", help="The column of the dataset containing an image."
+        "--image_column",
+        type=str,
+        default="image",
+        help="The column of the dataset containing an image.",
     )
     parser.add_argument(
         "--caption_column",
@@ -72,7 +85,7 @@ def parse_args():
         type=str,
         default="no",
         choices=["no", "fp16", "bf16"],
-        help="Precision to train on."
+        help="Precision to train on.",
     )
     parser.add_argument(
         "--results_dir",
@@ -98,7 +111,7 @@ def parse_args():
         "--dataset_name",
         type=str,
         default=None,
-        help="Name of the huggingface dataset used."
+        help="Name of the huggingface dataset used.",
     )
     parser.add_argument(
         "--train_data_dir",
@@ -116,7 +129,10 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=1, help="Batch Size.")
     parser.add_argument("--lr", type=float, default=3e-4, help="Learning Rate.")
     parser.add_argument(
-        "--gradient_accumulation_steps", type=int, default=1, help="Gradient Accumulation."
+        "--gradient_accumulation_steps",
+        type=int,
+        default=1,
+        help="Gradient Accumulation.",
     )
     parser.add_argument(
         "--save_results_every",
@@ -146,22 +162,33 @@ def parse_args():
     # Parse the argument
     return parser.parse_args()
 
+
 def main():
     args = parse_args()
-    accelerator = get_accelerator(log_with=args.log_with, gradient_accumulation_steps=args.gradient_accumulation_steps,mixed_precision=args.mixed_precision, logging_dir=args.logging_dir)
+    accelerator = get_accelerator(
+        log_with=args.log_with,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        mixed_precision=args.mixed_precision,
+        logging_dir=args.logging_dir,
+    )
     if accelerator.is_main_process:
         accelerator.init_trackers("muse_vae", config=vars(args))
     if args.train_data_dir:
-        dataset = get_dataset_from_dataroot(args.train_data_dir, image_column=args.image_column, caption_column=args.caption_column, save_path=args.dataset_save_path)
+        dataset = get_dataset_from_dataroot(
+            args.train_data_dir,
+            image_column=args.image_column,
+            caption_column=args.caption_column,
+            save_path=args.dataset_save_path,
+        )
     elif args.dataset_name:
         dataset = load_dataset(args.dataset_name)["train"]
     vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
     if args.resume_path:
-        print (f'Resuming VAE from: {args.resume_path}')
+        print(f"Resuming VAE from: {args.resume_path}")
         vae.load(args.resume_path)
 
-        resume_from_parts = args.resume_path.split('.')
-        for i in range(len(resume_from_parts)-1, -1, -1):
+        resume_from_parts = args.resume_path.split(".")
+        for i in range(len(resume_from_parts) - 1, -1, -1):
             if resume_from_parts[i].isdigit():
                 current_step = int(resume_from_parts[i])
                 print(f"Found step {current_step} for the VAE model.")
@@ -171,7 +198,9 @@ def main():
     dataset = ImageDataset(dataset, args.image_size, image_column=args.image_column)
     # dataloader
 
-    dataloader, validation_dataloader = split_dataset_into_dataloaders(dataset, args.valid_frac, args.seed, args.batch_size)
+    dataloader, validation_dataloader = split_dataset_into_dataloaders(
+        dataset, args.valid_frac, args.seed, args.batch_size
+    )
     trainer = VQGanVAETrainer(
         vae,
         dataloader,
@@ -192,11 +221,10 @@ def main():
         ema_update_every=args.ema_update_every,
         apply_grad_penalty_every=args.apply_grad_penalty_every,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
-        clear_previous_experiments=args.clear_previous_experiments
+        clear_previous_experiments=args.clear_previous_experiments,
     )
 
     trainer.train()
-
 
 
 if __name__ == "__main__":
