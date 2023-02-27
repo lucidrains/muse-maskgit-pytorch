@@ -1,4 +1,3 @@
-
 from pathlib import Path
 from shutil import rmtree
 
@@ -18,16 +17,23 @@ from ema_pytorch import EMA
 
 
 import numpy as np
+
 try:
     import wandb
 except:
     None
+
+
 def noop(*args, **kwargs):
     pass
+
+
 # helper functions
+
 
 def identity(t, *args, **kwargs):
     return t
+
 
 def cycle(dl):
     while True:
@@ -66,6 +72,8 @@ def get_accelerator(**accelerate_kwargs):
 
     accelerator = Accelerator(**accelerate_kwargs)
     return accelerator
+
+
 def split_dataset(dataset, valid_frac, accelerator, seed=42):
     if valid_frac > 0:
         train_size = int((1 - valid_frac) * len(dataset))
@@ -85,7 +93,9 @@ def split_dataset(dataset, valid_frac, accelerator, seed=42):
         )
     return ds, valid_ds
 
+
 # main trainer class
+
 
 @beartype
 class BaseAcceleratedTrainer(nn.Module):
@@ -107,7 +117,7 @@ class BaseAcceleratedTrainer(nn.Module):
         clear_previous_experiments=False,
     ):
         super().__init__()
-        self.model=None
+        self.model = None
         # instantiate accelerator
         self.gradient_accumulation_steps = gradient_accumulation_steps
         self.accelerator = accelerator
@@ -144,6 +154,7 @@ class BaseAcceleratedTrainer(nn.Module):
             optim=self.optim.state_dict(),
         )
         torch.save(pkg, path)
+
     def load(self, path):
         path = Path(path)
         assert path.exists()
@@ -154,30 +165,41 @@ class BaseAcceleratedTrainer(nn.Module):
 
         self.optim.load_state_dict(pkg["optim"])
         return pkg
+
     def log_validation_images(self, images, step, prompt=None):
         for tracker in self.accelerator.trackers:
             if tracker.name == "tensorboard":
                 np_images = np.stack([np.asarray(img) for img in images])
-                tracker.writer.add_images("validation", np_images, step, dataformats="NHWC")
+                tracker.writer.add_images(
+                    "validation", np_images, step, dataformats="NHWC"
+                )
             if tracker.name == "wandb":
                 tracker.log(
                     {
                         "validation": [
-                            wandb.Image(image, caption=f"{i}"+"" if prompt else f": {prompt}")
+                            wandb.Image(
+                                image, caption=f"{i}" + "" if prompt else f": {prompt}"
+                            )
                             for i, image in enumerate(images)
                         ]
                     }
                 )
+
     def print(self, msg):
         self.accelerator.print(msg)
+
     def log(self, log_dict):
         self.accelerator.log(log_dict)
+
     def prepare(self, *args):
         return self.accelerator.prepare(*args)
+
     def get_state_dict(self, model):
         return self.accelerator.get_state_dict(model)
+
     def unwrap_model(self, model):
         return self.accelerator.unwrap_model(model)
+
     @property
     def device(self):
         return self.accelerator.device
@@ -198,8 +220,9 @@ class BaseAcceleratedTrainer(nn.Module):
         return self.accelerator.is_local_main_process
 
     def train_step(self):
-        raise NotImplementedError("You are calling train_step on the base trainer with no models")
-
+        raise NotImplementedError(
+            "You are calling train_step on the base trainer with no models"
+        )
 
     def train(self, log_fn=noop):
         self.model.train()
@@ -209,4 +232,3 @@ class BaseAcceleratedTrainer(nn.Module):
             log_fn(logs)
         self.writer.close()
         self.print("training complete")
-
