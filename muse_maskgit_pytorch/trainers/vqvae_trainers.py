@@ -217,10 +217,8 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
 
         # log
         
-        accum_log(logs, {'lr': self.lr_scheduler.get_last_lr()[0]})
-
-        # self.print(f"{steps}: vae loss: {logs['Train/vae_loss']} - discr loss: {logs['Train/discr_loss']}")
         self.print(f"{steps}: vae loss: {logs['Train/vae_loss']} - discr loss: {logs['Train/discr_loss']} - lr: {self.lr_scheduler.get_last_lr()[0]}")
+        logs['lr'] = self.lr_scheduler.get_last_lr()[0]
         self.accelerator.log(logs, step=steps)
 
         # update exponential moving averaged generator
