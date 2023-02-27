@@ -19,6 +19,7 @@ setup(
   ],
   install_requires=[
     'accelerate',
+    'diffusers',
     'datasets',
     'beartype',
     'einops>=0.6',
