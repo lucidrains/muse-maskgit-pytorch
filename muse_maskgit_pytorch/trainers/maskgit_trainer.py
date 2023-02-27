@@ -202,4 +202,4 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
                 self.log_validation_images(
                     self.validation_prompt, self.steps, cond_image=cond_image
                 )
-        return logs
+            return logs
