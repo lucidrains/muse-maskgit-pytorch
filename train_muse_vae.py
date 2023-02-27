@@ -88,12 +88,6 @@ def parse_args():
     )
 
     # vae_trainer args
-    #parser.add_argument(
-        #"--resume_from",
-        #type=str,
-        #default="",
-        #help="Path to the vae model. eg. 'results/vae.steps.pt'",
-    #)
     parser.add_argument(
         "--dataset_name",
         type=str,
