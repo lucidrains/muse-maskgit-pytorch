@@ -89,12 +89,6 @@ def parse_args():
 
     # vae_trainer args
     parser.add_argument(
-        "--resume_from",
-        type=str,
-        default="",
-        help="Path to the vae model. eg. 'results/vae.steps.pt'",
-    )
-    parser.add_argument(
         "--dataset_name",
         type=str,
         default=None,
@@ -137,6 +131,8 @@ def parse_args():
         default=256,
         help="Image size. You may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it",
     )
+    parser.add_argument("--lr_scheduler", type=str, default="constant", help='The scheduler type to use. Choose between ["linear", "cosine", "cosine_with_restarts", "polynomial", "constant", "constant_with_warmup"]')
+    parser.add_argument("--lr_warmup_steps", type=int, default=0, help='Number of steps for the warmup in the lr scheduler.')    
     parser.add_argument(
         "--resume_path",
         type=str,
@@ -156,6 +152,7 @@ def main():
     elif args.dataset_name:
         dataset = load_dataset(args.dataset_name)["train"]
     vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
+    
     if args.resume_path:
         print (f'Resuming VAE from: {args.resume_path}')
         vae.load(args.resume_path)
@@ -177,9 +174,11 @@ def main():
         dataloader,
         validation_dataloader,
         accelerator,
-        current_step=0,
+        current_step=current_step,
         num_train_steps=args.num_train_steps,
         lr=args.lr,
+        lr_scheduler = args.lr_scheduler,
+        lr_warmup_steps = args.lr_warmup_steps,        
         max_grad_norm=args.max_grad_norm,
         discr_max_grad_norm=args.discr_max_grad_norm,
         save_results_every=args.save_results_every,

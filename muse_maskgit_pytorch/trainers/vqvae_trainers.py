@@ -1,6 +1,7 @@
 
 from pathlib import Path
 from shutil import rmtree
+from datetime import datetime
 
 from beartype import beartype
 from PIL import Image
@@ -11,6 +12,7 @@ from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid, save_image
 
+
 from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
 
 from einops import rearrange
@@ -20,6 +22,8 @@ from accelerate import Accelerator, DistributedType, DistributedDataParallelKwar
 from ema_pytorch import EMA
 import numpy as np
 from muse_maskgit_pytorch.trainers.base_accelerated_trainer import BaseAcceleratedTrainer
+from diffusers.optimization import get_scheduler
+
 def noop(*args, **kwargs):
     pass
 
@@ -49,6 +53,8 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         logging_dir="./results/logs",
         apply_grad_penalty_every=4,
         lr=3e-4,
+        lr_scheduler_type='constant',
+        lr_warmup_steps= 500,           
         discr_max_grad_norm=None,
         use_ema=True,
         ema_beta=0.995,
@@ -71,6 +77,20 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         # optimizers
         self.optim = Adam(vae_parameters, lr=lr)
         self.discr_optim = Adam(discr_parameters, lr=lr)
+        
+        self.lr_scheduler = get_scheduler(
+                lr_scheduler_type,
+                optimizer=self.optim,
+                num_warmup_steps=lr_warmup_steps * self.gradient_accumulation_steps,
+                num_training_steps=self.num_train_steps * self.gradient_accumulation_steps,
+        )
+    
+        self.lr_scheduler_discr = get_scheduler(
+            lr_scheduler_type,
+            optimizer=self.discr_optim,
+            num_warmup_steps=lr_warmup_steps * self.gradient_accumulation_steps,
+            num_training_steps=self.num_train_steps * self.gradient_accumulation_steps,
+        )        
 
         self.discr_max_grad_norm = discr_max_grad_norm
 
@@ -169,6 +189,9 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
 
         if exists(self.max_grad_norm):
             self.accelerator.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+        
+        self.lr_scheduler.step()
+        self.lr_scheduler_discr.step()
         self.optim.step()
         self.optim.zero_grad()
 
@@ -192,9 +215,10 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
 
             self.discr_optim.step()
 
-            # log
-
-            # self.print(f"{steps}: vae loss: {logs['Train/vae_loss']} - discr loss: {logs['Train/discr_loss']}")
+        # log
+        
+        self.print(f"{steps}: vae loss: {logs['Train/vae_loss']} - discr loss: {logs['Train/discr_loss']} - lr: {self.lr_scheduler.get_last_lr()[0]}")
+        logs['lr'] = self.lr_scheduler.get_last_lr()[0]
         self.accelerator.log(logs, step=steps)
 
         # update exponential moving averaged generator
