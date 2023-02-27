@@ -53,7 +53,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         logging_dir="./results/logs",
         apply_grad_penalty_every=4,
         lr=3e-4,
-        lr_scheduler='constant',
+        lr_scheduler_type='constant',
         lr_warmup_steps= 500,           
         discr_max_grad_norm=None,
         use_ema=True,
@@ -78,15 +78,15 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         self.optim = Adam(vae_parameters, lr=lr)
         self.discr_optim = Adam(discr_parameters, lr=lr)
         
-        self.lr_scheduler_optim = get_scheduler(
-         lr_scheduler,
+        self.lr_scheduler = get_scheduler(
+                lr_scheduler_type,
                 optimizer=self.optim,
                 num_warmup_steps=lr_warmup_steps * self.gradient_accumulation_steps,
                 num_training_steps=self.num_train_steps * self.gradient_accumulation_steps,
         )
     
-        self.lr_scheduler_discr_optim = get_scheduler(
-            lr_scheduler,
+        self.lr_scheduler_discr = get_scheduler(
+            lr_scheduler_type,
             optimizer=self.discr_optim,
             num_warmup_steps=lr_warmup_steps * self.gradient_accumulation_steps,
             num_training_steps=self.num_train_steps * self.gradient_accumulation_steps,
@@ -190,8 +190,8 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         if exists(self.max_grad_norm):
             self.accelerator.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
         
-        self.lr_scheduler_optim.step()
-        self.lr_scheduler_discr_optim.step()
+        self.lr_scheduler.step()
+        self.lr_scheduler_discr.step()
         self.optim.step()
         self.optim.zero_grad()
 
@@ -217,10 +217,10 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
 
         # log
         
-        accum_log(logs, {'lr': self.lr_scheduler_optim.get_last_lr()[0]})
+        accum_log(logs, {'lr': self.lr_scheduler.get_last_lr()[0]})
 
         # self.print(f"{steps}: vae loss: {logs['Train/vae_loss']} - discr loss: {logs['Train/discr_loss']}")
-        self.print(f"{steps}: vae loss: {logs['Train/vae_loss']} - discr loss: {logs['Train/discr_loss']} - lr: {self.lr_scheduler_optim.get_last_lr()[0]}")
+        self.print(f"{steps}: vae loss: {logs['Train/vae_loss']} - discr loss: {logs['Train/discr_loss']} - lr: {self.lr_scheduler.get_last_lr()[0]}")
         self.accelerator.log(logs, step=steps)
 
         # update exponential moving averaged generator
