@@ -44,7 +44,7 @@ class ImageTextDataset(ImageDataset):
         image_size,
         tokenizer,
         image_column="image",
-        caption_column="caption",
+        caption_column=None,
     ):
         super().__init__(dataset, image_size=image_size, image_column=image_column)
         self.caption_column = caption_column
