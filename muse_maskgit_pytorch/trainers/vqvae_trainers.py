@@ -22,7 +22,7 @@ from accelerate import Accelerator, DistributedType, DistributedDataParallelKwar
 from ema_pytorch import EMA
 import numpy as np
 from muse_maskgit_pytorch.trainers.base_accelerated_trainer import BaseAcceleratedTrainer
-from muse_maskgit_pytorch.diffusers_optimization import get_scheduler
+from diffusers.optimization import get_scheduler
 
 def noop(*args, **kwargs):
     pass
