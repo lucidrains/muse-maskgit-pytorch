@@ -212,6 +212,10 @@ def main():
                 break
         if current_step == 0:
             print("No step found for the VAE model.")
+    else:
+        print("No step found for the MaskGit model.")
+        current_step = 0   
+        
     dataset = ImageDataset(
         dataset,
         args.image_size,
@@ -232,7 +236,7 @@ def main():
         current_step=current_step,
         num_train_steps=args.num_train_steps,
         lr=args.lr,
-        lr_scheduler=args.lr_scheduler,
+        lr_scheduler_type=args.lr_scheduler,
         lr_warmup_steps=args.lr_warmup_steps,
         max_grad_norm=args.max_grad_norm,
         discr_max_grad_norm=args.discr_max_grad_norm,
