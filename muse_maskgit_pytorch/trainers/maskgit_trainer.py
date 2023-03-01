@@ -196,7 +196,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
                     ema_state_dict = self.accelerator.unwrap_model(
                         self.ema_model
                     ).state_dict()
-                    file_name = f"{maskgit_save_name}.{steps}.ema.pt" if not self.only_save_last_checkpoint else f"{maskgit_save_name}.ema.pt"
+                    file_name = f"{maskgit_save_name}.{int(steps[0])}.ema.pt" if not self.only_save_last_checkpoint else f"{maskgit_save_name}.ema.pt"
                     model_path = str(
                         self.results_dir / file_name
                     )
