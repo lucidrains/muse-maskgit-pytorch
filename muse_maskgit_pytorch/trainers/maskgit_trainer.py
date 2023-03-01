@@ -9,7 +9,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid, save_image
-
+from PIL import Image
 from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
 
 from einops import rearrange
@@ -138,7 +138,9 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
             cond_scale=cond_scale,
             temperature=temperature,
         )
-        super().log_validation_images(images, step, validation_prompts)
+        save_file = str(self.results_dir / f"maskgit_{step}.png")
+        save_image(images, save_file)
+        super().log_validation_images([Image.open(save_file)], step, validation_prompts)
 
     def train_step(self):
         device = self.device
