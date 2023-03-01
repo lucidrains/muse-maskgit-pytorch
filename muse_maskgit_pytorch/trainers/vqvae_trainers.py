@@ -67,6 +67,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         ema_update_after_step=0,
         ema_update_every=1,
         clear_previous_experiments=False,
+        validation_image_scale=1,
     ):
         super().__init__(
             dataloader,
@@ -82,6 +83,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
             logging_dir=logging_dir,
             apply_grad_penalty_every=apply_grad_penalty_every,
             clear_previous_experiments=clear_previous_experiments,
+            validation_image_scale=validation_image_scale,
         )
 
         # vae

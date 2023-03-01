@@ -8,7 +8,7 @@ from torch import nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader, random_split
 from torchvision.utils import make_grid, save_image
-
+from PIL import Image
 from einops import rearrange
 
 from accelerate import Accelerator, DistributedType, DistributedDataParallelKwargs
@@ -115,6 +115,7 @@ class BaseAcceleratedTrainer(nn.Module):
         apply_grad_penalty_every=4,
         gradient_accumulation_steps=1,
         clear_previous_experiments=False,
+        validation_image_scale=1,
     ):
         super().__init__()
         self.model = None
@@ -130,7 +131,7 @@ class BaseAcceleratedTrainer(nn.Module):
         self.logging_dir.mkdir(parents=True, exist_ok=True)
 
         # training params
-
+        self.validation_image_scale = validation_image_scale
         self.register_buffer("steps", torch.Tensor([current_step]))
         self.num_train_steps = num_train_steps
         self.max_grad_norm = max_grad_norm
@@ -167,6 +168,12 @@ class BaseAcceleratedTrainer(nn.Module):
         return pkg
 
     def log_validation_images(self, images, step, prompts=None):
+        if self.validation_image_scale != 1:
+            # Feel free to make pr for better solution!
+            output_size = (int(images[0].shape[0]*self.validation_image_scale), int(images[0].shape[1]*self.validation_image_scale))
+            images_pil = [Image.fromarray(image) for image in images]
+            images_pil_resized = [image_pil.resize(output_size) for image_pil in images_pil]
+            images = [np.array(image_pil) for image_pil in images_pil_resized]
         for tracker in self.accelerator.trackers:
             if tracker.name == "tensorboard":
                 np_images = np.stack([np.asarray(img) for img in images])

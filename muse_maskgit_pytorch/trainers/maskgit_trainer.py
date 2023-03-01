@@ -63,6 +63,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         log_model_every=100,
         validation_prompts=["a photo of a dog"],
         clear_previous_experiments=False,
+        validation_image_scale=1,
     ):
         super().__init__(
             dataloader,
@@ -78,6 +79,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
             logging_dir=logging_dir,
             apply_grad_penalty_every=apply_grad_penalty_every,
             clear_previous_experiments=clear_previous_experiments,
+            validation_image_scale=validation_image_scale,
         )
         self.log_model_every = log_model_every
         self.batch_size = batch_size
