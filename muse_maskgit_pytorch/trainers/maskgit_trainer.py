@@ -60,7 +60,6 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         ema_beta=0.995,
         ema_update_after_step=0,
         ema_update_every=1,
-        save_results_every=100,
         validation_prompts=["a photo of a dog"],
         clear_previous_experiments=False,
         validation_image_scale=1,
