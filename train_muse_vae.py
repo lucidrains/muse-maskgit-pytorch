@@ -19,6 +19,12 @@ def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--validation_image_scale",
+        default=1,
+        type=float,
+        help="Factor by which to scale the validation images.",
+    )
+    parser.add_argument(
         "--no_center_crop",
         action="store_true",
         help="Don't do center crop.",
@@ -251,6 +257,7 @@ def main():
         apply_grad_penalty_every=args.apply_grad_penalty_every,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         clear_previous_experiments=args.clear_previous_experiments,
+        validation_image_scale=validation_image_scale,
     )
 
     trainer.train()

@@ -24,6 +24,12 @@ def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--validation_image_scale",
+        default=1,
+        type=float,
+        help="Factor by which to scale the validation images.",
+    )
+    parser.add_argument(
         "--no_center_crop",
         action="store_true",
         help="Don't do center crop.",
@@ -74,7 +80,7 @@ def parse_args():
         "--validation_prompt",
         type=str,
         default="A photo of a dog",
-        help="Validation prompt.",
+        help="Validation prompt separated by |.",
     )
     parser.add_argument(
         "--max_grad_norm", type=float, default=None, help="Max gradient norm."
@@ -335,9 +341,10 @@ def main():
         ema_update_every=args.ema_update_every,
         apply_grad_penalty_every=args.apply_grad_penalty_every,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
-        validation_prompt=args.validation_prompt,
+        validation_prompts=args.validation_prompt.split('|'),
         log_model_every=args.log_model_every,
         clear_previous_experiments=args.clear_previous_experiments,
+        validation_image_scale=validation_image_scale,
     )
 
     trainer.train()

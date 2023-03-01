@@ -588,7 +588,10 @@ class VQGanVAE(nn.Module):
         adaptive_weight.clamp_(max=1e4)
 
         # combine losses
-
+        # recon loss is reconstruction loss mse
+        # perceptual loss is loss in vgg features mse
+        # commit loss is loss in quanitizing in vq mse
+        # gan loss is
         loss = recon_loss + perceptual_loss + commit_loss + adaptive_weight * gen_loss
 
         if return_recons:

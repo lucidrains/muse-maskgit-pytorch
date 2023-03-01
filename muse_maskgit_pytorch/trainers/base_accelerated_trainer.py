@@ -166,7 +166,7 @@ class BaseAcceleratedTrainer(nn.Module):
         self.optim.load_state_dict(pkg["optim"])
         return pkg
 
-    def log_validation_images(self, images, step, prompt=None):
+    def log_validation_images(self, images, step, prompts=None):
         for tracker in self.accelerator.trackers:
             if tracker.name == "tensorboard":
                 np_images = np.stack([np.asarray(img) for img in images])
@@ -178,7 +178,7 @@ class BaseAcceleratedTrainer(nn.Module):
                     {
                         "validation": [
                             wandb.Image(
-                                image, caption=f"{i}" + "" if prompt else f": {prompt}"
+                                image, caption=f"{i}" + "" if not prompts else f": {prompts[i]}"
                             )
                             for i, image in enumerate(images)
                         ]

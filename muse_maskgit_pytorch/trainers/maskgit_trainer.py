@@ -61,7 +61,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         ema_update_after_step=0,
         ema_update_every=1,
         log_model_every=100,
-        validation_prompt="a photo of a dog",
+        validation_prompts=["a photo of a dog"],
         clear_previous_experiments=False,
     ):
         super().__init__(
@@ -117,7 +117,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         )
 
         self.use_ema = use_ema
-        self.validation_prompt = validation_prompt
+        self.validation_prompts = validation_prompts
         if use_ema:
             self.ema_model = EMA(
                 maskgit,
@@ -127,15 +127,15 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
             self.ema_model = self.prepare(self.ema_model)
 
     def log_validation_images(
-        self, validation_prompt, step, cond_image=None, cond_scale=3, temperature=1
+        self, validation_prompts, step, cond_image=None, cond_scale=3, temperature=1
     ):
-        image = self.model.generate(
-            [validation_prompt],
+        images = self.model.generate(
+            validation_prompts,
             cond_images=cond_image,
             cond_scale=cond_scale,
             temperature=temperature,
         )
-        super().log_validation_images([image], step, validation_prompt)
+        super().log_validation_images(images, step, validation_prompts)
 
     def train_step(self):
         device = self.device
@@ -198,8 +198,9 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
             if steps % self.log_model_every == 0:
                 cond_image = None
                 if self.model.cond_image_size:
+                    self.print("With conditional image training, we recommend keeping the validation prompts to empty strings")
                     cond_image = F.interpolate(imgs[0], 256)
                 self.log_validation_images(
-                    self.validation_prompt, self.steps, cond_image=cond_image
+                    self.validation_prompts, self.steps, cond_image=cond_image
                 )
             return logs
