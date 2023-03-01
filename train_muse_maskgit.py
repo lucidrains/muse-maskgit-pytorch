@@ -24,6 +24,11 @@ def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--only_save_last_checkpoint",
+        action="store_true",
+        help="Only save last checkpoint.",
+    )
+    parser.add_argument(
         "--validation_image_scale",
         default=1,
         type=float,
@@ -344,7 +349,8 @@ def main():
         validation_prompts=args.validation_prompt.split('|'),
         log_model_every=args.log_model_every,
         clear_previous_experiments=args.clear_previous_experiments,
-        validation_image_scale=validation_image_scale,
+        validation_image_scale=args.validation_image_scale,
+        only_save_last_checkpoint=args.only_save_last_checkpoint
     )
 
     trainer.train()

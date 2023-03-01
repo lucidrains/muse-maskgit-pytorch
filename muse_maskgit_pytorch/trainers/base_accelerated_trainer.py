@@ -116,6 +116,7 @@ class BaseAcceleratedTrainer(nn.Module):
         gradient_accumulation_steps=1,
         clear_previous_experiments=False,
         validation_image_scale=1,
+        only_save_last_checkpoint=False,
     ):
         super().__init__()
         self.model = None
@@ -131,6 +132,7 @@ class BaseAcceleratedTrainer(nn.Module):
         self.logging_dir.mkdir(parents=True, exist_ok=True)
 
         # training params
+        self.only_save_last_checkpoint = only_save_last_checkpoint
         self.validation_image_scale = validation_image_scale
         self.register_buffer("steps", torch.Tensor([current_step]))
         self.num_train_steps = num_train_steps

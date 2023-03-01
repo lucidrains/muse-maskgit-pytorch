@@ -64,6 +64,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         validation_prompts=["a photo of a dog"],
         clear_previous_experiments=False,
         validation_image_scale=1,
+        only_save_last_checkpoint=False,
     ):
         super().__init__(
             dataloader,
@@ -80,6 +81,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
             apply_grad_penalty_every=apply_grad_penalty_every,
             clear_previous_experiments=clear_previous_experiments,
             validation_image_scale=validation_image_scale,
+            only_save_last_checkpoint=only_save_last_checkpoint,
         )
         self.log_model_every = log_model_every
         self.batch_size = batch_size
@@ -184,15 +186,18 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
                 maskgit_save_name = (
                     "maskgit_superres" if self.model.cond_image_size else "maskgit"
                 )
-                model_path = str(self.results_dir / f"{maskgit_save_name}.{steps}.pt")
+                file_name = f"{maskgit_save_name}.{steps}.pt" if not self.only_save_last_checkpoint else f"{maskgit_save_name}.pt"
+
+                model_path = str(self.results_dir / file_name)
                 self.accelerator.save(state_dict, model_path)
 
                 if self.use_ema:
                     ema_state_dict = self.accelerator.unwrap_model(
                         self.ema_model
                     ).state_dict()
+                    file_name = f"{maskgit_save_name}.{steps}.ema.pt" if not self.only_save_last_checkpoint else f"{maskgit_save_name}.ema.pt"
                     model_path = str(
-                        self.results_dir / f"{maskgit_save_name}.{steps}.ema.pt"
+                        self.results_dir / file_name
                     )
                     self.accelerator.save(ema_state_dict, model_path)
 

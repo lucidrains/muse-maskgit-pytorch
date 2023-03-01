@@ -68,6 +68,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         ema_update_every=1,
         clear_previous_experiments=False,
         validation_image_scale=1,
+        only_save_last_checkpoint=False,
     ):
         super().__init__(
             dataloader,
@@ -84,6 +85,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
             apply_grad_penalty_every=apply_grad_penalty_every,
             clear_previous_experiments=clear_previous_experiments,
             validation_image_scale=validation_image_scale,
+            only_save_last_checkpoint=only_save_last_checkpoint,
         )
 
         # vae
@@ -285,14 +287,16 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         self.accelerator.wait_for_everyone()
         if self.is_main and (steps % self.save_model_every) == 0:
             state_dict = self.accelerator.unwrap_model(self.model).state_dict()
-            model_path = str(self.results_dir / f"vae.{steps}.pt")
+            file_name = f"vae.{steps}.pt" if not self.only_save_last_checkpoint else "vae.pt"
+            model_path = str(self.results_dir / file_name)
             self.accelerator.save(state_dict, model_path)
 
             if self.use_ema:
                 ema_state_dict = self.accelerator.unwrap_model(
                     self.ema_model
                 ).state_dict()
-                model_path = str(self.results_dir / f"vae.{steps}.ema.pt")
+                file_name = f"vae.{steps}.ema.pt" if not self.only_save_last_checkpoint else "vae.ema.pt"
+                model_path = str(self.results_dir / file_name)
                 self.accelerator.save(ema_state_dict, model_path)
 
             self.print(f"{steps}: saving model to {str(self.results_dir)}")
