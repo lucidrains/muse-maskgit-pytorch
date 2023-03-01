@@ -60,7 +60,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         ema_beta=0.995,
         ema_update_after_step=0,
         ema_update_every=1,
-        log_model_every=100,
+        save_results_every=100,
         validation_prompts=["a photo of a dog"],
         clear_previous_experiments=False,
         validation_image_scale=1,
@@ -83,7 +83,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
             validation_image_scale=validation_image_scale,
             only_save_last_checkpoint=only_save_last_checkpoint,
         )
-        self.log_model_every = log_model_every
+        self.save_results_every = save_results_every
         self.batch_size = batch_size
         # maskgit
         self.model = maskgit
@@ -202,7 +202,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
                     self.accelerator.save(ema_state_dict, model_path)
 
                 self.print(f"{steps}: saving model to {str(self.results_dir)}")
-            if steps % self.log_model_every == 0:
+            if steps % self.save_results_every == 0:
                 cond_image = None
                 if self.model.cond_image_size:
                     self.print("With conditional image training, we recommend keeping the validation prompts to empty strings")
@@ -210,4 +210,6 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
                 self.log_validation_images(
                     self.validation_prompts, self.steps, cond_image=cond_image
                 )
+                self.print(f"{steps}: saving to {str(self.results_dir)}")
+
             return logs
