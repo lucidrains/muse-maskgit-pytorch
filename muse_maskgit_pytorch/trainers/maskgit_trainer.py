@@ -25,6 +25,7 @@ from muse_maskgit_pytorch.trainers.base_accelerated_trainer import (
 )
 from muse_maskgit_pytorch.t5 import t5_encode_text_from_encoded
 import torch.nn.functional as F
+import os
 
 
 def noop(*args, **kwargs):
@@ -138,7 +139,9 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
             cond_scale=cond_scale,
             temperature=temperature,
         )
-        save_file = str(self.results_dir / f"maskgit_{step}.png")
+        save_file = str(self.results_dir / f"MaskGit" / f"maskgit_{step}.png")
+        os.makedirs(str(self.results_dir / f"MaskGit"), exist_ok = True)
+        
         save_image(images, save_file)
         super().log_validation_images([Image.open(save_file)], step, validation_prompts)
 
@@ -196,7 +199,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
                     ema_state_dict = self.accelerator.unwrap_model(
                         self.ema_model
                     ).state_dict()
-                    file_name = f"{maskgit_save_name}.{int(steps[0])}.ema.pt" if not self.only_save_last_checkpoint else f"{maskgit_save_name}.ema.pt"
+                    file_name = f"{maskgit_save_name}.{steps}.ema.pt" if not self.only_save_last_checkpoint else f"{maskgit_save_name}.ema.pt"
                     model_path = str(
                         self.results_dir / file_name
                     )
