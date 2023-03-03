@@ -186,6 +186,12 @@ def parse_args():
         default=None,
         help="Path to the last saved checkpoint. 'results/vae.steps.pt'",
     )
+    parser.add_argument('--taming', dest='taming', action='store_true')
+    parser.add_argument('--vqgan_model_path', type=str, default = None,
+                    help='path to your trained VQGAN weights. This should be a .ckpt file. (only valid when taming option is enabled)')
+
+    parser.add_argument('--vqgan_config_path', type=str, default = None,
+                    help='path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)')
     # Parse the argument
     return parser.parse_args()
 
@@ -209,7 +215,11 @@ def main():
         )
     elif args.dataset_name:
         dataset = load_dataset(args.dataset_name)["train"]
-    vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
+    
+    if args.taming:
+        vae = VQGanVAE(args.vqgan_model_path, args.vqgan_config_path)
+    else:
+        vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
 
     if args.resume_path:
         print(f"Resuming VAE from: {args.resume_path}")
