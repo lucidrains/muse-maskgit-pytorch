@@ -6,6 +6,7 @@ from datasets import load_dataset
 import os
 from muse_maskgit_pytorch import (
     VQGanVAE,
+    VQGanVAETaming,
     MaskGitTrainer,
     MaskGit,
     MaskGitTransformer,
@@ -156,7 +157,7 @@ def parse_args():
     parser.add_argument(
         "--vae_path",
         type=str,
-        default="",
+        default=None,
         help="Path to the vae model. eg. 'results/vae.steps.pt'",
     )
     parser.add_argument(
@@ -229,6 +230,12 @@ def parse_args():
         default=None,
         help="Path to the last saved checkpoint. 'results/maskgit.steps.pt'",
     )
+    parser.add_argument('--taming', dest='taming', action='store_true', default=None)
+    parser.add_argument('--taming_model_path', type=str, default = None,
+                    help='path to your trained VQGAN weights. This should be a .ckpt file. (only valid when taming option is enabled)')
+
+    parser.add_argument('--taming_config_path', type=str, default = None,
+                    help='path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)')
     # Parse the argument
     return parser.parse_args()
 
@@ -252,23 +259,30 @@ def main():
         )
     elif args.dataset_name:
         dataset = load_dataset(args.dataset_name)["train"]
+    if all([bool(args.vae_path), bool(args.taming)]):
+        raise Exception("You can't pass vae_path and taming args at the same time.")
+    
+    if args.vae_path:
+        print("Loading Muse VQGanVAE")
+        vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size).to(
+            accelerator.device
+        )
 
-    vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size).to(
-        accelerator.device
-    )
-
-    print("Resuming VAE from: ", args.vae_path)
-    vae.load(
-        args.vae_path
-    )  # you will want to load the exponentially moving averaged VAE
+        print("Resuming VAE from: ", args.vae_path)
+        vae.load(
+            args.vae_path
+        )  # you will want to load the exponentially moving averaged VAE
+    elif args.taming:
+        print("Loading Taming VQGanVAE")
+        vae = VQGanVAETaming(vqgan_model_path=args.taming_model_path, vqgan_config_path=args.taming_config_path)
 
     # then you plug the vae and transformer into your MaskGit as so
 
     # (1) create your transformer / attention network
 
     transformer = MaskGitTransformer(
-        num_tokens=args.num_tokens,  # must be same as codebook size above
-        seq_len=args.seq_len,  # must be equivalent to fmap_size ** 2 in vae
+        num_tokens=vae.codebook_size,  # must be same as codebook size above
+        seq_len=vae.get_encoded_fmap_size(args.image_size) ** 2,  # must be equivalent to fmap_size ** 2 in vae
         dim=args.dim,  # model dimension
         depth=args.depth,  # depth
         dim_head=args.dim_head,  # attention head dimension
