@@ -8,13 +8,14 @@ from torch import nn, einsum
 
 import torchvision.transforms as T
 
-from typing import Callable, Optional, List
+from typing import Callable, Optional, List, Union
 
 from einops import rearrange, repeat
 
 from beartype import beartype
 
 from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
+from muse_maskgit_pytorch.vqgan_vae_taming import VQGanVAETaming
 from muse_maskgit_pytorch.t5 import (
     t5_encode_text,
     get_encoded_dim,
@@ -476,8 +477,8 @@ class MaskGit(nn.Module):
         noise_schedule: Callable = cosine_schedule,
         token_critic: Optional[TokenCritic] = None,
         self_token_critic=False,
-        vae: Optional[VQGanVAE] = None,
-        cond_vae: Optional[VQGanVAE] = None,
+        vae: Optional[Union[VQGanVAE, VQGanVAETaming]] = None,
+        cond_vae: Optional[Union[VQGanVAE, VQGanVAETaming]] = None,
         cond_image_size=None,
         cond_drop_prob=0.5,
         self_cond_prob=0.9,
