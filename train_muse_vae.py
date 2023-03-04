@@ -211,10 +211,8 @@ def main():
     elif args.dataset_name:
         dataset = load_dataset(args.dataset_name)["train"]
     
-    if args.taming:
-        vae = VQGanVAE(args.vqgan_model_path, args.vqgan_config_path)
-    else:
-        vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
+    
+    vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
 
     if args.resume_path:
         print(f"Resuming VAE from: {args.resume_path}")
