@@ -133,12 +133,14 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
     def log_validation_images(
         self, validation_prompts, step, cond_image=None, cond_scale=3, temperature=1
     ):
+        
         images = self.model.generate(
             validation_prompts,
             cond_images=cond_image,
             cond_scale=cond_scale,
             temperature=temperature,
         )
+        step = int(step.item())
         save_file = str(self.results_dir / f"MaskGit" / f"maskgit_{step}.png")
         os.makedirs(str(self.results_dir / f"MaskGit"), exist_ok = True)
         
@@ -211,6 +213,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
                 if self.model.cond_image_size:
                     self.print("With conditional image training, we recommend keeping the validation prompts to empty strings")
                     cond_image = F.interpolate(imgs[0], 256)
+
                 self.log_validation_images(
                     self.validation_prompts, self.steps, cond_image=cond_image
                 )
