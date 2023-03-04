@@ -186,12 +186,7 @@ def parse_args():
         default=None,
         help="Path to the last saved checkpoint. 'results/vae.steps.pt'",
     )
-    parser.add_argument('--taming', dest='taming', action='store_true')
-    parser.add_argument('--vqgan_model_path', type=str, default = None,
-                    help='path to your trained VQGAN weights. This should be a .ckpt file. (only valid when taming option is enabled)')
-
-    parser.add_argument('--vqgan_config_path', type=str, default = None,
-                    help='path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)')
+   
     # Parse the argument
     return parser.parse_args()
 
