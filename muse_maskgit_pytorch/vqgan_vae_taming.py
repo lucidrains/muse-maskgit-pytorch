@@ -1,16 +1,9 @@
-import io
-import sys
 import os
-import requests
-import PIL
-import warnings
-import hashlib
+import copy
 import urllib
-import yaml
 from pathlib import Path
 from tqdm import tqdm
 from math import sqrt, log
-from packaging import version
 
 from omegaconf import OmegaConf
 import importlib
@@ -20,15 +13,12 @@ from torch import nn
 import torch.nn.functional as F
 
 from einops import rearrange
-from taming.models.vqgan import VQModel, GumbelVQ
-from dalle_pytorch import distributed_utils
+from taming.models.vqgan import VQModel #, GumbelVQ
+import muse_maskgit_pytorch.distributed_utils as distributed_utils
 
 # constants
-
-CACHE_PATH = os.path.expanduser("~/.cache/dalle")
-
-OPENAI_VAE_ENCODER_PATH = 'https://cdn.openai.com/dall-e/encoder.pkl'
-OPENAI_VAE_DECODER_PATH = 'https://cdn.openai.com/dall-e/decoder.pkl'
+CACHE_PATH = Path("~/.cache/taming")
+CACHE_PATH.mkdir(parents=True, exist_ok=True)
 
 VQGAN_VAE_PATH = 'https://heibox.uni-heidelberg.de/f/140747ba53464f49b476/?dl=1'
 VQGAN_VAE_CONFIG_PATH = 'https://heibox.uni-heidelberg.de/f/6ecf2af6c658432c8298/?dl=1'
@@ -44,7 +34,6 @@ def default(val, d):
 
 def download(url, filename = None, root = CACHE_PATH, is_distributed=None, backend=None):
     filename = default(filename, os.path.basename(url))
-
     download_target = os.path.join(root, filename)
     download_target_tmp = os.path.join(root, f'tmp.{filename}')
 
@@ -89,7 +78,7 @@ def instantiate_from_config(config):
         raise KeyError("Expected key `target` to instantiate.")
     return get_obj_from_str(config["target"])(**config.get("params", dict()))
 
-class VQGanVAE(nn.Module):
+class VQGanVAETaming(nn.Module):
     def __init__(self, vqgan_model_path=None, vqgan_config_path=None):
         super().__init__()
 
@@ -107,7 +96,7 @@ class VQGanVAE(nn.Module):
         config = OmegaConf.load(config_path)
 
         model = instantiate_from_config(config["model"])
-
+        
         state = torch.load(model_path, map_location = 'cpu')['state_dict']
         model.load_state_dict(state, strict = False)
 
@@ -117,18 +106,14 @@ class VQGanVAE(nn.Module):
 
         # f as used in https://github.com/CompVis/taming-transformers#overview-of-pretrained-models
         f = config.model.params.ddconfig.resolution / config.model.params.ddconfig.attn_resolutions[0]
-        # var: codebook_size
-        # fn: get_encoded_fmap_size
-        # fn: decode_from_ids
         
         self.num_layers = int(log(f)/log(2))
         self.channels = 3
         self.image_size = 256
         self.num_tokens = config.model.params.n_embed
-        self.is_gumbel = isinstance(self.model, GumbelVQ)
-
-        self.encode = self.model.encode
-
+        self.is_gumbel = False # isinstance(self.model, GumbelVQ)
+        self.codebook_size = config["model"]["params"]["n_embed"]
+    
 
     @torch.no_grad()
     def get_codebook_indices(self, img):
@@ -139,7 +124,13 @@ class VQGanVAE(nn.Module):
             return rearrange(indices, 'b h w -> b (h w)', b=b)
         return rearrange(indices, '(b n) -> b n', b = b)
 
-    def decode(self, img_seq):
+    def get_encoded_fmap_size(self, image_size):
+        return image_size // (2**self.num_layers)
+
+
+    def decode_from_ids(self, img_seq):
+        print(img_seq.shape)
+        img_seq = rearrange(img_seq, "b h w -> b (h w)")
         b, n = img_seq.shape
         one_hot_indices = F.one_hot(img_seq, num_classes = self.num_tokens).float()
         z = one_hot_indices @ self.model.quantize.embed.weight if self.is_gumbel \
@@ -149,7 +140,28 @@ class VQGanVAE(nn.Module):
         img = self.model.decode(z)
 
         img = (img.clamp(-1., 1.) + 1) * 0.5
+        print(img)
         return img
+
+    def encode(self, im_seq):
+        # encode output
+        # fmap, loss, (perplexity, min_encodings, min_encodings_indices) = self.model.encode(im_seq)
+        fmap, loss, (_, _, min_encodings_indices) = self.model.encode(im_seq)
+        
+        b, _, h, w = fmap.shape
+        min_encodings_indices = rearrange(min_encodings_indices, "(b h w) 1 -> b h w", h=h, w=w, b=b)
+        return fmap, min_encodings_indices, loss
+    
+    def decode_ids(self, ids):
+        return self.model.decode_code(ids)
+
+
+    def copy_for_eval(self):
+        device = next(self.parameters()).device
+        vae_copy = copy.deepcopy(self.cpu())
+
+        vae_copy.eval()
+        return vae_copy.to(device)
 
     def forward(self, img):
         raise NotImplemented
