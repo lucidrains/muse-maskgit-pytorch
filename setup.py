@@ -24,9 +24,11 @@ setup(
         "beartype",
         "einops>=0.6",
         "ema-pytorch",
+        "omegaconf>=2.3.0",
         "pillow",
         "sentencepiece",
         "torch>=1.6",
+        "traming>=0.0.1"
         "transformers",
         "torch>=1.6",
         "torchvision",
