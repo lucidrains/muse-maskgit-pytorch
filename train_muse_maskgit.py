@@ -59,7 +59,7 @@ def parse_args():
     parser.add_argument(
         "--num_tokens",
         type=int,
-        default=256,
+        default=None,
         help="Number of tokens. Must be same as codebook size above",
     )
     parser.add_argument(
@@ -232,10 +232,10 @@ def parse_args():
     )
     parser.add_argument('--taming', dest='taming', action='store_true', default=None)
     parser.add_argument('--taming_model_path', type=str, default = None,
-                    help='path to your trained VQGAN weights. This should be a .ckpt file. (only valid when taming option is enabled)')
-
+                        help='path to your trained VQGAN weights. This should be a .ckpt file. (only valid when taming option is enabled)')
+    
     parser.add_argument('--taming_config_path', type=str, default = None,
-                    help='path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)')
+                        help='path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)')
     # Parse the argument
     return parser.parse_args()
 
@@ -272,6 +272,7 @@ def main():
         vae.load(
             args.vae_path
         )  # you will want to load the exponentially moving averaged VAE
+
     elif args.taming:
         print("Loading Taming VQGanVAE")
         vae = VQGanVAETaming(vqgan_model_path=args.taming_model_path, vqgan_config_path=args.taming_config_path)
@@ -281,8 +282,8 @@ def main():
     # (1) create your transformer / attention network
 
     transformer = MaskGitTransformer(
-        num_tokens=vae.codebook_size,  # must be same as codebook size above
-        seq_len=vae.get_encoded_fmap_size(args.image_size) ** 2,  # must be equivalent to fmap_size ** 2 in vae
+        num_tokens=args.num_tokens if args.num_tokens else args.vq_codebook_size,  # must be same as codebook size above
+        seq_len=args.seq_len,  # must be equivalent to fmap_size ** 2 in vae
         dim=args.dim,  # model dimension
         depth=args.depth,  # depth
         dim_head=args.dim_head,  # attention head dimension
