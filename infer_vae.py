@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torchvision.utils import save_image
 from pathlib import Path
 from datasets import load_dataset
-import os
+import os, random
 from muse_maskgit_pytorch import (
     VQGanVAE,
     VQGanVAETaming,
@@ -35,12 +35,18 @@ def parse_args():
         help="Don't flip image.",
     )
     parser.add_argument(
+        "--random_image",
+        action="store_true",
+        help="Get a random image from the dataset to use for the reconstruction.",
+    )
+    parser.add_argument(
         "--dataset_save_path",
         type=str,
         default="dataset",
         help="Path to save the dataset if you are making one from a directory",
     )
-    parser.add_argument("--seed", type=int, default=42, help="Seed.")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Seed for reproducibility. If set to -1 a random seed will be generated.")
     parser.add_argument(
         "--valid_frac", type=float, default=0.05, help="validation fraction."
     )
@@ -49,6 +55,12 @@ def parse_args():
         type=str,
         default="image",
         help="The column of the dataset containing an image.",
+    )
+    parser.add_argument(
+        "--caption_column",
+        type=str,
+        default="caption",
+        help="The column of the dataset containing a caption or a list of captions.",
     )
     parser.add_argument(
         "--mixed_precision",
@@ -125,6 +137,29 @@ def parse_args():
     # Parse the argument
     return parser.parse_args()
 
+def seed_to_int(s):
+    if type(s) is int:
+        return s
+    if s is None or s == '':
+        return random.randint(0, 2**32 - 1)
+
+    if ',' in s:
+        s = s.split(',')
+
+    if type(s) is list:
+        seed_list = []
+        for seed in s:
+            if seed is None or seed == '':
+                seed_list.append(random.randint(0, 2**32 - 1))
+            else:
+                seed_list = s
+
+        return seed_list
+
+    n = abs(int(s) if s.isdigit() else random.Random(s).randint(0, 2**32 - 1))
+    while n >= 2**32:
+        n = n >> 32
+    return n
 
 def main():
     args = parse_args()
@@ -132,6 +167,9 @@ def main():
         mixed_precision=args.mixed_precision,
         logging_dir=args.logging_dir,
     )
+
+    # set pytorch seed for reproducibility 
+    torch.manual_seed(seed_to_int(args.seed))    
 
     if args.train_data_dir:
         dataset = get_dataset_from_dataroot(
@@ -171,12 +209,16 @@ def main():
         center_crop=not args.no_center_crop,
         flip=not args.no_flip,
     )
-    save_image(dataset[0], "input.png")
-    _, ids, _ = vae.encode(dataset[0][None].to(accelerator.device))
+    
+    image_id = 0 if not args.random_image else random.randint(0, len(dataset))
+   
+    os.makedirs(args.results_dir, exist_ok=True)
+
+    save_image(dataset[image_id], f"{args.results_dir}/input.png")
+    
+    _, ids, _ = vae.encode(dataset[image_id][None].to(accelerator.device))
     recon = vae.decode_from_ids(ids)
-    save_image(dataset[0], "output.png")
-
-
+    save_image(recon, f"{args.results_dir}/output.png")
 
 if __name__ == "__main__":
     main()
