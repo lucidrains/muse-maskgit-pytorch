@@ -261,14 +261,14 @@ def main():
         dataset = load_dataset(args.dataset_name)["train"]
     if all([bool(args.vae_path), bool(args.taming)]):
         raise Exception("You can't pass vae_path and taming args at the same time.")
-    
+
     if args.vae_path:
-        print("Loading Muse VQGanVAE")
+        accelerator.print("Loading Muse VQGanVAE")
         vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size).to(
             accelerator.device
         )
 
-        print("Resuming VAE from: ", args.vae_path)
+        accelerator.print("Resuming VAE from: ", args.vae_path)
         vae.load(
             args.vae_path
         )  # you will want to load the exponentially moving averaged VAE
@@ -305,19 +305,19 @@ def main():
 
     # load the maskgit transformer from disk if we have previously trained one
     if args.resume_path:
-        print(f"Resuming MaskGit from: {args.resume_path}")
+        accelerator.print(f"Resuming MaskGit from: {args.resume_path}")
         maskgit.load(args.resume_path)
 
         resume_from_parts = args.resume_path.split(".")
         for i in range(len(resume_from_parts) - 1, -1, -1):
             if resume_from_parts[i].isdigit():
                 current_step = int(resume_from_parts[i])
-                print(f"Found step {current_step} for the MaskGit model.")
+                accelerator.print(f"Found step {current_step} for the MaskGit model.")
                 break
         if current_step == 0:
-            print("No step found for the MaskGit model.")
+            accelerator.print("No step found for the MaskGit model.")
     else:
-        print("No step found for the MaskGit model.")
+        accelerator.print("No step found for the MaskGit model.")
         current_step = 0
 
     dataset = ImageTextDataset(
