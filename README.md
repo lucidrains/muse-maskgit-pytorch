@@ -227,6 +227,11 @@ accelerate launch train_muse_vae.py --dataset_name="Isamu136/big-animal-dataset"
 2. Once you trained enough in the base VAE, move the checkpoint of your latest version to a new location. Then, do
 ```
 accelerate launch train_muse_maskgit.py --dataset_name="Isamu136/big-animal-dataset" --vae_path=path_to_vae_checkpoint
+
+Alternatively, if you want to use a pretrained autoencoder, download one from [here](https://github.com/CompVis/taming-transformers) and then extract it. In the below code, we are using vqgan_imagenet_f16_1024. Change the paths accordingly
+```
+accelerate launch train_muse_maskgit.py --dataset_name="Isamu136/big-animal-dataset" --taming_model_path="models/image_net_f16/ckpts/last.ckpt" --taming_config_path="models/image_net_f16/configs/model.yaml" --validation_prompt="elephant"
+```
 ```
 ## Appreciation
 

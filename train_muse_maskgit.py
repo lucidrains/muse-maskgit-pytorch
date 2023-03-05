@@ -179,8 +179,8 @@ def parse_args():
         help="Total number of steps to train for. eg. 50000.",
     )
     parser.add_argument("--dim", type=int, default=128, help="Model dimension.")
-    parser.add_argument("--batch_size", type=int, default=1, help="Batch Size.")
-    parser.add_argument("--lr", type=float, default=3e-4, help="Learning Rate.")
+    parser.add_argument("--batch_size", type=int, default=512, help="Batch Size.")
+    parser.add_argument("--lr", type=float, default=1e-4, help="Learning Rate.")
     parser.add_argument(
         "--gradient_accumulation_steps",
         type=int,
