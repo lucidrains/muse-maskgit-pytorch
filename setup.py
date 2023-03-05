@@ -28,7 +28,7 @@ setup(
         "pillow",
         "sentencepiece",
         "torch>=1.6",
-        "taming-transformers>=0.0.1"
+        "taming-transformers>=0.0.1",
         "transformers",
         "torch>=1.6",
         "torchvision",
