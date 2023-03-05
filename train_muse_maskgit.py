@@ -59,7 +59,7 @@ def parse_args():
     parser.add_argument(
         "--num_tokens",
         type=int,
-        default=None,
+        default=256,
         help="Number of tokens. Must be same as codebook size above",
     )
     parser.add_argument(
@@ -230,10 +230,9 @@ def parse_args():
         default=None,
         help="Path to the last saved checkpoint. 'results/maskgit.steps.pt'",
     )
-    parser.add_argument('--taming', dest='taming', action='store_true', default=None)
     parser.add_argument('--taming_model_path', type=str, default = None,
                         help='path to your trained VQGAN weights. This should be a .ckpt file. (only valid when taming option is enabled)')
-    
+
     parser.add_argument('--taming_config_path', type=str, default = None,
                         help='path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)')
     # Parse the argument
@@ -248,8 +247,7 @@ def main():
         mixed_precision=args.mixed_precision,
         logging_dir=args.logging_dir,
     )
-    if accelerator.is_main_process:
-        accelerator.init_trackers("muse_maskgit", config=vars(args))
+
     if args.train_data_dir:
         dataset = get_dataset_from_dataroot(
             args.train_data_dir,
@@ -259,7 +257,7 @@ def main():
         )
     elif args.dataset_name:
         dataset = load_dataset(args.dataset_name)["train"]
-    if all([bool(args.vae_path), bool(args.taming)]):
+    if args.vae_path and args.taming_model_path:
         raise Exception("You can't pass vae_path and taming args at the same time.")
 
     if args.vae_path:
@@ -273,14 +271,16 @@ def main():
             args.vae_path
         )  # you will want to load the exponentially moving averaged VAE
 
-    elif args.taming:
+    elif args.taming_model_path:
         print("Loading Taming VQGanVAE")
         vae = VQGanVAETaming(vqgan_model_path=args.taming_model_path, vqgan_config_path=args.taming_config_path)
-
+        args.num_tokens = vae.codebook_size
+        args.seq_len = vae.get_encoded_fmap_size(args.image_size) ** 2
+    if accelerator.is_main_process:
+        accelerator.init_trackers("muse_maskgit", config=vars(args))
     # then you plug the vae and transformer into your MaskGit as so
 
     # (1) create your transformer / attention network
-
     transformer = MaskGitTransformer(
         num_tokens=args.num_tokens if args.num_tokens else args.vq_codebook_size,  # must be same as codebook size above
         seq_len=args.seq_len,  # must be equivalent to fmap_size ** 2 in vae
