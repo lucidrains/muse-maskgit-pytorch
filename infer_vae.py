@@ -1,21 +1,15 @@
 import torch
-import torch.nn.functional as F
 from torchvision.utils import save_image
-from pathlib import Path
-from datasets import load_dataset
+from datasets import load_dataset, Dataset, Image
 import os, random
 from muse_maskgit_pytorch import (
     VQGanVAE,
     VQGanVAETaming,
-    MaskGitTrainer,
-    MaskGit,
-    MaskGitTransformer,
     get_accelerator,
 )
 from muse_maskgit_pytorch.dataset import (
     get_dataset_from_dataroot,
     ImageDataset,
-    split_dataset_into_dataloaders,
 )
 
 import argparse
@@ -57,12 +51,6 @@ def parse_args():
         help="The column of the dataset containing an image.",
     )
     parser.add_argument(
-        "--caption_column",
-        type=str,
-        default="caption",
-        help="The column of the dataset containing a caption or a list of captions.",
-    )
-    parser.add_argument(
         "--mixed_precision",
         type=str,
         default="no",
@@ -101,27 +89,9 @@ def parse_args():
         default=None,
         help="Dataset folder where your input images for training are.",
     )
-    parser.add_argument(
-        "--num_train_steps",
-        type=int,
-        default=50000,
-        help="Total number of steps to train for. eg. 50000.",
-    )
     parser.add_argument("--dim", type=int, default=128, help="Model dimension.")
     parser.add_argument("--batch_size", type=int, default=512, help="Batch Size.")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning Rate.")
-    parser.add_argument(
-        "--save_results_every",
-        type=int,
-        default=100,
-        help="Save results every this number of steps.",
-    )
-    parser.add_argument(
-        "--save_model_every",
-        type=int,
-        default=500,
-        help="Save the model every this number of steps.",
-    )
     parser.add_argument("--vq_codebook_size", type=int, default=256, help="Image Size.")
     parser.add_argument(
         "--image_size",
@@ -134,6 +104,13 @@ def parse_args():
 
     parser.add_argument('--taming_config_path', type=str, default = None,
                         help='path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)')
+    parser.add_argument(
+        "--input_image",
+        type=str,
+        default=None,
+        help="Path to an image to use as input for reconstruction instead of using one from the dataset.",
+    )    
+    
     # Parse the argument
     return parser.parse_args()
 
@@ -171,15 +148,18 @@ def main():
     # set pytorch seed for reproducibility 
     torch.manual_seed(seed_to_int(args.seed))    
 
-    if args.train_data_dir:
+    if args.train_data_dir and not args.input_image:
         dataset = get_dataset_from_dataroot(
             args.train_data_dir,
             image_column=args.image_column,
-            caption_column=args.caption_column,
             save_path=args.dataset_save_path,
         )
-    elif args.dataset_name:
+    elif args.dataset_name and not args.input_image:
         dataset = load_dataset(args.dataset_name)["train"]
+    
+    elif args.input_image:
+        dataset = Dataset.from_dict({"image": [args.input_image]}).cast_column("image", Image())
+        
     if args.vae_path and args.taming_model_path:
         raise Exception("You can't pass vae_path and taming args at the same time.")
 
@@ -201,17 +181,17 @@ def main():
         args.seq_len = vae.get_encoded_fmap_size(args.image_size) ** 2
     vae = vae.to(accelerator.device)
     # then you plug the vae and transformer into your MaskGit as so
-
-    dataset = ImageDataset(
-        dataset,
-        args.image_size,
-        image_column=args.image_column,
-        center_crop=not args.no_center_crop,
-        flip=not args.no_flip,
-    )
     
+    dataset = ImageDataset(
+            dataset,
+            args.image_size,
+            image_column=args.image_column,
+            center_crop=not args.no_center_crop,
+            flip=not args.no_flip,
+        )
+        
     image_id = 0 if not args.random_image else random.randint(0, len(dataset))
-   
+
     os.makedirs(args.results_dir, exist_ok=True)
 
     save_image(dataset[image_id], f"{args.results_dir}/input.png")
