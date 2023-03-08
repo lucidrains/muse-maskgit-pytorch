@@ -189,8 +189,8 @@ class BaseAcceleratedTrainer(nn.Module):
                     {
                         "validation": [
                             wandb.Image(
-                                images[0], caption="" if not prompts else " ".join(prompts)
-                            )
+                                image, caption="" if not prompts else prompts[i]
+                            ) for i,image in enumerate(images)
                         ]
                     }
                 )

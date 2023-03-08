@@ -163,6 +163,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
 
     def log_validation_images(self, models_to_evaluate, logs, steps):
         log_imgs = []
+        prompts = ["vae"] if len(models_to_evaluate) == 1 else ["vae", "ema"]
         for model, filename in models_to_evaluate:
             model.eval()
 
@@ -185,7 +186,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
             save_file = str(self.results_dir / f"{filename}.png")
             save_image(grid, save_file)
             log_imgs.append(Image.open(save_file))
-        super().log_validation_images(log_imgs, steps)
+        super().log_validation_images(log_imgs, steps, prompts=prompts)
 
     def train_step(self):
         device = self.device

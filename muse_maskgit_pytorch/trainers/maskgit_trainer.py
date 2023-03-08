@@ -145,7 +145,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         os.makedirs(str(self.results_dir / f"MaskGit"), exist_ok = True)
         
         save_image(images, save_file)
-        super().log_validation_images([Image.open(save_file)], step, validation_prompts)
+        super().log_validation_images([Image.open(save_file)], step, [" ".join(validation_prompts)])
 
     def train_step(self):
         device = self.device
