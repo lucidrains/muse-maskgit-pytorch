@@ -235,6 +235,10 @@ def parse_args():
 
     parser.add_argument('--taming_config_path', type=str, default = None,
                         help='path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)')
+    parser.add_argument("--optimizer",type=str,
+                        default='Adam',
+                        help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Adam",
+                        )        
     # Parse the argument
     return parser.parse_args()
 
@@ -358,7 +362,8 @@ def main():
         validation_prompts=args.validation_prompt.split('|'),
         clear_previous_experiments=args.clear_previous_experiments,
         validation_image_scale=args.validation_image_scale,
-        only_save_last_checkpoint=args.only_save_last_checkpoint
+        only_save_last_checkpoint=args.only_save_last_checkpoint,
+        optimizer=args.optimizer,
     )
 
     trainer.train()

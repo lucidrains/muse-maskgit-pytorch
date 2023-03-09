@@ -186,6 +186,10 @@ def parse_args():
         default=None,
         help="Path to the last saved checkpoint. 'results/vae.steps.pt'",
     )
+    parser.add_argument("--optimizer",type=str,
+                        default='Adam',
+                        help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Adam",
+                        )    
    
     # Parse the argument
     return parser.parse_args()
@@ -265,7 +269,8 @@ def main():
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         clear_previous_experiments=args.clear_previous_experiments,
         validation_image_scale=args.validation_image_scale,
-        only_save_last_checkpoint=args.only_save_last_checkpoint
+        only_save_last_checkpoint=args.only_save_last_checkpoint,
+        optimizer=args.optimizer,
     )
 
     trainer.train()
