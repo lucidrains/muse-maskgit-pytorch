@@ -12,17 +12,17 @@ function.
 """
 
 
-
 is_distributed = None
 """Whether we are distributed."""
 backend = None
 """Backend in usage."""
 
+
 def require_set_backend():
     """Raise an `AssertionError` when the backend has not been set."""
     assert backend is not None, (
-        'distributed backend is not set. Please call '
-        '`distributed_utils.set_backend_from_args` at the start of your script'
+        "distributed backend is not set. Please call "
+        "`distributed_utils.set_backend_from_args` at the start of your script"
     )
 
 

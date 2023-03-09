@@ -102,15 +102,14 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         transformer_parameters = all_parameters - vae_parameters - t5_parameters
 
         # optimizers
-        if optimizer == 'Adam':
+        if optimizer == "Adam":
             self.optim = Adam(transformer_parameters, lr=lr)
-        elif optimizer == 'AdamW':
-                self.optim = Adam(transformer_parameters, lr=lr)
-        elif optimizer == 'Lion':
-                self.optim = Lion(transformer_parameters, lr=lr)
+        elif optimizer == "AdamW":
+            self.optim = Adam(transformer_parameters, lr=lr)
+        elif optimizer == "Lion":
+            self.optim = Lion(transformer_parameters, lr=lr)
         else:
-            print (f"{optimizer} optimizer not supported yet.")
-            
+            print(f"{optimizer} optimizer not supported yet.")
 
         self.lr_scheduler = get_scheduler(
             lr_scheduler_type,
@@ -144,7 +143,6 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
     def log_validation_images(
         self, validation_prompts, step, cond_image=None, cond_scale=3, temperature=1
     ):
-        
         images = self.model.generate(
             validation_prompts,
             cond_images=cond_image,
@@ -153,10 +151,12 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         )
         step = int(step.item())
         save_file = str(self.results_dir / f"MaskGit" / f"maskgit_{step}.png")
-        os.makedirs(str(self.results_dir / f"MaskGit"), exist_ok = True)
-        
+        os.makedirs(str(self.results_dir / f"MaskGit"), exist_ok=True)
+
         save_image(images, save_file)
-        super().log_validation_images([Image.open(save_file)], step, [" ".join(validation_prompts)])
+        super().log_validation_images(
+            [Image.open(save_file)], step, [" ".join(validation_prompts)]
+        )
 
     def train_step(self):
         device = self.device
@@ -203,7 +203,11 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
                 maskgit_save_name = (
                     "maskgit_superres" if self.model.cond_image_size else "maskgit"
                 )
-                file_name = f"{maskgit_save_name}.{steps}.pt" if not self.only_save_last_checkpoint else f"{maskgit_save_name}.pt"
+                file_name = (
+                    f"{maskgit_save_name}.{steps}.pt"
+                    if not self.only_save_last_checkpoint
+                    else f"{maskgit_save_name}.pt"
+                )
 
                 model_path = str(self.results_dir / file_name)
                 self.accelerator.save(state_dict, model_path)
@@ -212,17 +216,21 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
                     ema_state_dict = self.accelerator.unwrap_model(
                         self.ema_model
                     ).state_dict()
-                    file_name = f"{maskgit_save_name}.{steps}.ema.pt" if not self.only_save_last_checkpoint else f"{maskgit_save_name}.ema.pt"
-                    model_path = str(
-                        self.results_dir / file_name
+                    file_name = (
+                        f"{maskgit_save_name}.{steps}.ema.pt"
+                        if not self.only_save_last_checkpoint
+                        else f"{maskgit_save_name}.ema.pt"
                     )
+                    model_path = str(self.results_dir / file_name)
                     self.accelerator.save(ema_state_dict, model_path)
 
                 self.print(f"{steps}: saving model to {str(self.results_dir)}")
             if steps % self.save_results_every == 0:
                 cond_image = None
                 if self.model.cond_image_size:
-                    self.print("With conditional image training, we recommend keeping the validation prompts to empty strings")
+                    self.print(
+                        "With conditional image training, we recommend keeping the validation prompts to empty strings"
+                    )
                     cond_image = F.interpolate(imgs[0], 256)
 
                 self.log_validation_images(

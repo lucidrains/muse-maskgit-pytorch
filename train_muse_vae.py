@@ -18,10 +18,7 @@ def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--webdataset",
-        type=str,
-        default=None,
-        help="Path to webdataset if using one."
+        "--webdataset", type=str, default=None, help="Path to webdataset if using one."
     )
     parser.add_argument(
         "--only_save_last_checkpoint",
@@ -191,16 +188,21 @@ def parse_args():
         default=None,
         help="Path to the last saved checkpoint. 'results/vae.steps.pt'",
     )
-    parser.add_argument("--optimizer",type=str,
-                        default='Lion',
-                        help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Adam",
-                        )    
-   
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="Lion",
+        help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Lion",
+    )
+
     # Parse the argument
     return parser.parse_args()
 
+
 def preprocess_webdataset(args, image):
     return {args.image_column: image}
+
+
 def main():
     args = parse_args()
     accelerator = get_accelerator(
@@ -213,7 +215,10 @@ def main():
         accelerator.init_trackers("muse_vae", config=vars(args))
     if args.webdataset is not None:
         import webdataset as wds
-        dataset = wds.WebDataset(args.webdataset).shuffle(1000).decode("rgb").to_tuple("png")
+
+        dataset = (
+            wds.WebDataset(args.webdataset).shuffle(1000).decode("rgb").to_tuple("png")
+        )
         dataset = dataset.map(lambda image: preprocess_webdataset(args, image))
     elif args.train_data_dir:
         dataset = get_dataset_from_dataroot(

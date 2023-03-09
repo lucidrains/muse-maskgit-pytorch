@@ -175,7 +175,10 @@ class BaseAcceleratedTrainer(nn.Module):
             self.print(f"Logging with prompts: {prompts}")
         if self.validation_image_scale != 1:
             # Feel free to make pr for better solution!
-            output_size = (int(images[0].size[0]*self.validation_image_scale), int(images[0].size[1]*self.validation_image_scale))
+            output_size = (
+                int(images[0].size[0] * self.validation_image_scale),
+                int(images[0].size[1] * self.validation_image_scale),
+            )
             for i in range(len(images)):
                 images[i] = images[i].resize(output_size)
         for tracker in self.accelerator.trackers:
@@ -190,7 +193,8 @@ class BaseAcceleratedTrainer(nn.Module):
                         "validation": [
                             wandb.Image(
                                 image, caption="" if not prompts else prompts[i]
-                            ) for i,image in enumerate(images)
+                            )
+                            for i, image in enumerate(images)
                         ]
                     }
                 )

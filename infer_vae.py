@@ -39,8 +39,12 @@ def parse_args():
         default="dataset",
         help="Path to save the dataset if you are making one from a directory",
     )
-    parser.add_argument("--seed", type=int, default=42,
-                        help="Seed for reproducibility. If set to -1 a random seed will be generated.")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Seed for reproducibility. If set to -1 a random seed will be generated.",
+    )
     parser.add_argument(
         "--valid_frac", type=float, default=0.05, help="validation fraction."
     )
@@ -99,34 +103,43 @@ def parse_args():
         default=256,
         help="Image size. You may want to start with small images, and then curriculum learn to larger ones, but because the vae is all convolution, it should generalize to 512 (as in paper) without training on it",
     )
-    parser.add_argument('--taming_model_path', type=str, default = None,
-                        help='path to your trained VQGAN weights. This should be a .ckpt file. (only valid when taming option is enabled)')
+    parser.add_argument(
+        "--taming_model_path",
+        type=str,
+        default=None,
+        help="path to your trained VQGAN weights. This should be a .ckpt file. (only valid when taming option is enabled)",
+    )
 
-    parser.add_argument('--taming_config_path', type=str, default = None,
-                        help='path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)')
+    parser.add_argument(
+        "--taming_config_path",
+        type=str,
+        default=None,
+        help="path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)",
+    )
     parser.add_argument(
         "--input_image",
         type=str,
         default=None,
         help="Path to an image to use as input for reconstruction instead of using one from the dataset.",
-    )    
-    
+    )
+
     # Parse the argument
     return parser.parse_args()
+
 
 def seed_to_int(s):
     if type(s) is int:
         return s
-    if s is None or s == '':
+    if s is None or s == "":
         return random.randint(0, 2**32 - 1)
 
-    if ',' in s:
-        s = s.split(',')
+    if "," in s:
+        s = s.split(",")
 
     if type(s) is list:
         seed_list = []
         for seed in s:
-            if seed is None or seed == '':
+            if seed is None or seed == "":
                 seed_list.append(random.randint(0, 2**32 - 1))
             else:
                 seed_list = s
@@ -138,6 +151,7 @@ def seed_to_int(s):
         n = n >> 32
     return n
 
+
 def main():
     args = parse_args()
     accelerator = get_accelerator(
@@ -145,8 +159,8 @@ def main():
         logging_dir=args.logging_dir,
     )
 
-    # set pytorch seed for reproducibility 
-    torch.manual_seed(seed_to_int(args.seed))    
+    # set pytorch seed for reproducibility
+    torch.manual_seed(seed_to_int(args.seed))
 
     if args.train_data_dir and not args.input_image:
         dataset = get_dataset_from_dataroot(
@@ -156,10 +170,12 @@ def main():
         )
     elif args.dataset_name and not args.input_image:
         dataset = load_dataset(args.dataset_name)["train"]
-    
+
     elif args.input_image:
-        dataset = Dataset.from_dict({"image": [args.input_image]}).cast_column("image", Image())
-        
+        dataset = Dataset.from_dict({"image": [args.input_image]}).cast_column(
+            "image", Image()
+        )
+
     if args.vae_path and args.taming_model_path:
         raise Exception("You can't pass vae_path and taming args at the same time.")
 
@@ -176,29 +192,33 @@ def main():
 
     elif args.taming_model_path:
         print("Loading Taming VQGanVAE")
-        vae = VQGanVAETaming(vqgan_model_path=args.taming_model_path, vqgan_config_path=args.taming_config_path)
+        vae = VQGanVAETaming(
+            vqgan_model_path=args.taming_model_path,
+            vqgan_config_path=args.taming_config_path,
+        )
         args.num_tokens = vae.codebook_size
         args.seq_len = vae.get_encoded_fmap_size(args.image_size) ** 2
     vae = vae.to(accelerator.device)
     # then you plug the vae and transformer into your MaskGit as so
-    
+
     dataset = ImageDataset(
-            dataset,
-            args.image_size,
-            image_column=args.image_column,
-            center_crop=not args.no_center_crop,
-            flip=not args.no_flip,
-        )
-        
+        dataset,
+        args.image_size,
+        image_column=args.image_column,
+        center_crop=not args.no_center_crop,
+        flip=not args.no_flip,
+    )
+
     image_id = 0 if not args.random_image else random.randint(0, len(dataset))
 
     os.makedirs(f"{args.results_dir}/outputs", exist_ok=True)
 
     save_image(dataset[image_id], f"{args.results_dir}/outputs/input.png")
-    
+
     _, ids, _ = vae.encode(dataset[image_id][None].to(accelerator.device))
     recon = vae.decode_from_ids(ids)
     save_image(recon, f"{args.results_dir}/outputs/output.png")
+
 
 if __name__ == "__main__":
     main()

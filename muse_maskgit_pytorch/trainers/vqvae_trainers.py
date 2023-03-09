@@ -72,7 +72,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         clear_previous_experiments=False,
         validation_image_scale=1,
         only_save_last_checkpoint=False,
-        optimizer='Adam',
+        optimizer="Adam",
     ):
         super().__init__(
             dataloader,
@@ -100,17 +100,17 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         vae_parameters = all_parameters - discr_parameters
 
         # optimizers
-        if optimizer == 'Adam':
+        if optimizer == "Adam":
             self.optim = Adam(vae_parameters, lr=lr)
             self.discr_optim = Adam(discr_parameters, lr=lr)
-        elif optimizer == 'AdamW':
-                self.optim = AdamW(vae_parameters, lr=lr)
-                self.discr_optim = AdamW(discr_parameters, lr=lr)            
-        elif optimizer == 'Lion':
+        elif optimizer == "AdamW":
+            self.optim = AdamW(vae_parameters, lr=lr)
+            self.discr_optim = AdamW(discr_parameters, lr=lr)
+        elif optimizer == "Lion":
             self.optim = Lion(vae_parameters, lr=lr)
             self.discr_optim = Lion(discr_parameters, lr=lr)
         else:
-            print (f"{optimizer} optimizer not supported yet.")
+            print(f"{optimizer} optimizer not supported yet.")
 
         self.lr_scheduler = get_scheduler(
             lr_scheduler_type,
@@ -302,7 +302,9 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         self.accelerator.wait_for_everyone()
         if self.is_main and (steps % self.save_model_every) == 0:
             state_dict = self.accelerator.unwrap_model(self.model).state_dict()
-            file_name = f"vae.{steps}.pt" if not self.only_save_last_checkpoint else "vae.pt"
+            file_name = (
+                f"vae.{steps}.pt" if not self.only_save_last_checkpoint else "vae.pt"
+            )
             model_path = str(self.results_dir / file_name)
             self.accelerator.save(state_dict, model_path)
 
@@ -310,7 +312,11 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
                 ema_state_dict = self.accelerator.unwrap_model(
                     self.ema_model
                 ).state_dict()
-                file_name = f"vae.{steps}.ema.pt" if not self.only_save_last_checkpoint else "vae.ema.pt"
+                file_name = (
+                    f"vae.{steps}.ema.pt"
+                    if not self.only_save_last_checkpoint
+                    else "vae.ema.pt"
+                )
                 model_path = str(self.results_dir / file_name)
                 self.accelerator.save(ema_state_dict, model_path)
 

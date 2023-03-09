@@ -230,15 +230,25 @@ def parse_args():
         default=None,
         help="Path to the last saved checkpoint. 'results/maskgit.steps.pt'",
     )
-    parser.add_argument('--taming_model_path', type=str, default = None,
-                        help='path to your trained VQGAN weights. This should be a .ckpt file. (only valid when taming option is enabled)')
+    parser.add_argument(
+        "--taming_model_path",
+        type=str,
+        default=None,
+        help="path to your trained VQGAN weights. This should be a .ckpt file. (only valid when taming option is enabled)",
+    )
 
-    parser.add_argument('--taming_config_path', type=str, default = None,
-                        help='path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)')
-    parser.add_argument("--optimizer",type=str,
-                        default='Lion',
-                        help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Adam",
-                        )        
+    parser.add_argument(
+        "--taming_config_path",
+        type=str,
+        default=None,
+        help="path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)",
+    )
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="Lion",
+        help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Lion",
+    )
     # Parse the argument
     return parser.parse_args()
 
@@ -277,7 +287,10 @@ def main():
 
     elif args.taming_model_path:
         print("Loading Taming VQGanVAE")
-        vae = VQGanVAETaming(vqgan_model_path=args.taming_model_path, vqgan_config_path=args.taming_config_path)
+        vae = VQGanVAETaming(
+            vqgan_model_path=args.taming_model_path,
+            vqgan_config_path=args.taming_config_path,
+        )
         args.num_tokens = vae.codebook_size
         args.seq_len = vae.get_encoded_fmap_size(args.image_size) ** 2
     if accelerator.is_main_process:
@@ -286,7 +299,9 @@ def main():
 
     # (1) create your transformer / attention network
     transformer = MaskGitTransformer(
-        num_tokens=args.num_tokens if args.num_tokens else args.vq_codebook_size,  # must be same as codebook size above
+        num_tokens=args.num_tokens
+        if args.num_tokens
+        else args.vq_codebook_size,  # must be same as codebook size above
         seq_len=args.seq_len,  # must be equivalent to fmap_size ** 2 in vae
         dim=args.dim,  # model dimension
         depth=args.depth,  # depth
@@ -359,7 +374,7 @@ def main():
         ema_update_every=args.ema_update_every,
         apply_grad_penalty_every=args.apply_grad_penalty_every,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
-        validation_prompts=args.validation_prompt.split('|'),
+        validation_prompts=args.validation_prompt.split("|"),
         clear_previous_experiments=args.clear_previous_experiments,
         validation_image_scale=args.validation_image_scale,
         only_save_last_checkpoint=args.only_save_last_checkpoint,
