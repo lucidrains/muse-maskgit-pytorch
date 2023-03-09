@@ -171,6 +171,8 @@ class BaseAcceleratedTrainer(nn.Module):
         return pkg
 
     def log_validation_images(self, images, step, prompts=None):
+        if prompts:
+            self.print(f"Logging with prompts: {prompts}")
         if self.validation_image_scale != 1:
             # Feel free to make pr for better solution!
             output_size = (int(images[0].size[0]*self.validation_image_scale), int(images[0].size[1]*self.validation_image_scale))
@@ -187,9 +189,8 @@ class BaseAcceleratedTrainer(nn.Module):
                     {
                         "validation": [
                             wandb.Image(
-                                image, caption=f"{i}" + "" if not prompts else f": {prompts[i]}"
-                            )
-                            for i, image in enumerate(images)
+                                image, caption="" if not prompts else prompts[i]
+                            ) for i,image in enumerate(images)
                         ]
                     }
                 )

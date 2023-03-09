@@ -34,6 +34,7 @@ setup(
         "torchvision",
         "tqdm",
         "vector-quantize-pytorch>=0.10.14",
+        "lion-pytorch",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",

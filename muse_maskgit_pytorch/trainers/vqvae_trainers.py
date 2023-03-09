@@ -6,7 +6,10 @@ from beartype import beartype
 from PIL import Image
 import torch
 from torch import nn
-from torch.optim import Adam
+
+from torch.optim import Adam, AdamW
+from lion_pytorch import Lion
+
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid, save_image
@@ -69,6 +72,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         clear_previous_experiments=False,
         validation_image_scale=1,
         only_save_last_checkpoint=False,
+        optimizer='Adam',
     ):
         super().__init__(
             dataloader,
@@ -96,8 +100,17 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         vae_parameters = all_parameters - discr_parameters
 
         # optimizers
-        self.optim = Adam(vae_parameters, lr=lr)
-        self.discr_optim = Adam(discr_parameters, lr=lr)
+        if optimizer == 'Adam':
+            self.optim = Adam(vae_parameters, lr=lr)
+            self.discr_optim = Adam(discr_parameters, lr=lr)
+        elif optimizer == 'AdamW':
+                self.optim = AdamW(vae_parameters, lr=lr)
+                self.discr_optim = AdamW(discr_parameters, lr=lr)            
+        elif optimizer == 'Lion':
+            self.optim = Lion(vae_parameters, lr=lr)
+            self.discr_optim = Lion(discr_parameters, lr=lr)
+        else:
+            print (f"{optimizer} optimizer not supported yet.")
 
         self.lr_scheduler = get_scheduler(
             lr_scheduler_type,
@@ -163,6 +176,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
 
     def log_validation_images(self, models_to_evaluate, logs, steps):
         log_imgs = []
+        prompts = ["vae"] if len(models_to_evaluate) == 1 else ["vae", "ema"]
         for model, filename in models_to_evaluate:
             model.eval()
 
@@ -185,7 +199,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
             save_file = str(self.results_dir / f"{filename}.png")
             save_image(grid, save_file)
             log_imgs.append(Image.open(save_file))
-        super().log_validation_images(log_imgs, steps)
+        super().log_validation_images(log_imgs, steps, prompts=prompts)
 
     def train_step(self):
         device = self.device
@@ -238,7 +252,8 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
                 img = next(self.dl_iter)
                 img = img.to(device)
 
-                loss = self.model(img, return_discr_loss=True)
+                with torch.cuda.amp.autocast():
+                    loss = self.model(img, return_discr_loss=True)
 
                 self.accelerator.backward(loss / self.gradient_accumulation_steps)
 

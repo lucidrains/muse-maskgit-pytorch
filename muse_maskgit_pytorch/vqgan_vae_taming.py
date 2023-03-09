@@ -129,7 +129,6 @@ class VQGanVAETaming(nn.Module):
 
 
     def decode_from_ids(self, img_seq):
-        print(img_seq.shape)
         img_seq = rearrange(img_seq, "b h w -> b (h w)")
         b, n = img_seq.shape
         one_hot_indices = F.one_hot(img_seq, num_classes = self.num_tokens).float()
@@ -140,7 +139,6 @@ class VQGanVAETaming(nn.Module):
         img = self.model.decode(z)
 
         img = (img.clamp(-1., 1.) + 1) * 0.5
-        print(img)
         return img
 
     def encode(self, im_seq):

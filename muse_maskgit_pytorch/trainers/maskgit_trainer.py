@@ -5,7 +5,10 @@ from beartype import beartype
 
 import torch
 from torch import nn
-from torch.optim import Adam
+
+from torch.optim import Adam, AdamW
+from lion_pytorch import Lion
+
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid, save_image
@@ -65,6 +68,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         clear_previous_experiments=False,
         validation_image_scale=1,
         only_save_last_checkpoint=False,
+        optimizer="Lion",
     ):
         super().__init__(
             dataloader,
@@ -98,8 +102,15 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         transformer_parameters = all_parameters - vae_parameters - t5_parameters
 
         # optimizers
-
-        self.optim = Adam(transformer_parameters, lr=lr)
+        if optimizer == 'Adam':
+            self.optim = Adam(transformer_parameters, lr=lr)
+        elif optimizer == 'AdamW':
+                self.optim = Adam(transformer_parameters, lr=lr)
+        elif optimizer == 'Lion':
+                self.optim = Lion(transformer_parameters, lr=lr)
+        else:
+            print (f"{optimizer} optimizer not supported yet.")
+            
 
         self.lr_scheduler = get_scheduler(
             lr_scheduler_type,
@@ -145,7 +156,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         os.makedirs(str(self.results_dir / f"MaskGit"), exist_ok = True)
         
         save_image(images, save_file)
-        super().log_validation_images([Image.open(save_file)], step, validation_prompts)
+        super().log_validation_images([Image.open(save_file)], step, [" ".join(validation_prompts)])
 
     def train_step(self):
         device = self.device
