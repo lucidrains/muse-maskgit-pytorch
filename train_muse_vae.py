@@ -187,7 +187,7 @@ def parse_args():
         help="Path to the last saved checkpoint. 'results/vae.steps.pt'",
     )
     parser.add_argument("--optimizer",type=str,
-                        default='Adam',
+                        default='Lion',
                         help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Adam",
                         )    
    

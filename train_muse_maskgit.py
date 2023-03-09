@@ -236,7 +236,7 @@ def parse_args():
     parser.add_argument('--taming_config_path', type=str, default = None,
                         help='path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)')
     parser.add_argument("--optimizer",type=str,
-                        default='Adam',
+                        default='Lion',
                         help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Adam",
                         )        
     # Parse the argument
