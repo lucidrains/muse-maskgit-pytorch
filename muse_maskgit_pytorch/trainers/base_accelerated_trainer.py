@@ -239,5 +239,4 @@ class BaseAcceleratedTrainer(nn.Module):
             with self.accelerator.autocast():
                 logs = self.train_step()
             log_fn(logs)
-        self.writer.close()
         self.print("training complete")

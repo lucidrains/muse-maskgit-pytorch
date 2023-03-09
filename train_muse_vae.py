@@ -11,13 +11,18 @@ from muse_maskgit_pytorch.dataset import (
     split_dataset_into_dataloaders,
 )
 
-
 import argparse
 
 
 def parse_args():
     # Create the parser
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--webdataset",
+        type=str,
+        default=None,
+        help="Path to webdataset if using one."
+    )
     parser.add_argument(
         "--only_save_last_checkpoint",
         action="store_true",
@@ -190,7 +195,8 @@ def parse_args():
     # Parse the argument
     return parser.parse_args()
 
-
+def preprocess_webdataset(args, image):
+    return {args.image_column: image}
 def main():
     args = parse_args()
     accelerator = get_accelerator(
@@ -201,7 +207,11 @@ def main():
     )
     if accelerator.is_main_process:
         accelerator.init_trackers("muse_vae", config=vars(args))
-    if args.train_data_dir:
+    if args.webdataset is not None:
+        import webdataset as wds
+        dataset = wds.WebDataset(args.webdataset).shuffle(1000).decode("rgb").to_tuple("png")
+        dataset = dataset.map(lambda image: preprocess_webdataset(args, image))
+    elif args.train_data_dir:
         dataset = get_dataset_from_dataroot(
             args.train_data_dir,
             image_column=args.image_column,
