@@ -106,7 +106,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         if optimizer == "Adam":
             self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
         elif optimizer == "AdamW":
-            self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
+            self.optim = AdamW(transformer_parameters, lr=lr, weight_decay=weight_decay)
         elif optimizer == "Lion":
             self.optim = Lion(transformer_parameters, lr=lr, weight_decay=weight_decay)
         else:
