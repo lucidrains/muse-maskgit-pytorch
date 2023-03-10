@@ -249,6 +249,10 @@ def parse_args():
         default="Lion",
         help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Lion",
     )
+    parser.add_argument("--weight_decay", type=float,
+                        default=0.0,
+                        help="Optimizer weight_decay to use. Default: 0.0",
+                        )      
     # Parse the argument
     return parser.parse_args()
 
@@ -379,6 +383,7 @@ def main():
         validation_image_scale=args.validation_image_scale,
         only_save_last_checkpoint=args.only_save_last_checkpoint,
         optimizer=args.optimizer,
+        weight_decay=args.weight_decay,
     )
 
     trainer.train()
