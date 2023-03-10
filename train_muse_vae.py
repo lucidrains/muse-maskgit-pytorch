@@ -188,13 +188,15 @@ def parse_args():
         default=None,
         help="Path to the last saved checkpoint. 'results/vae.steps.pt'",
     )
-    parser.add_argument(
-        "--optimizer",
-        type=str,
-        default="Lion",
-        help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Lion",
-    )
-
+    parser.add_argument("--optimizer",type=str,
+        default='Lion',
+        help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Adam",
+    )    
+    parser.add_argument("--weight_decay", type=float,
+                        default=0.0,
+                        help="Optimizer weight_decay to use. Default: 0.0",
+                        )    
+   
     # Parse the argument
     return parser.parse_args()
 
