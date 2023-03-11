@@ -13,6 +13,9 @@ from muse_maskgit_pytorch.dataset import (
 
 import argparse
 
+import torch.nn as nn
+import bitsandbytes as bnb
+from accelerate import init_empty_weights
 
 def parse_args():
     # Create the parser
@@ -111,6 +114,11 @@ def parse_args():
         help="Precision to train on.",
     )
     parser.add_argument(
+        "--use_8bit_adam",
+        action="store_true",
+        help="Whether to use the 8bit adam optimiser",
+    )
+    parser.add_argument(
         "--results_dir",
         type=str,
         default="results",
@@ -188,15 +196,17 @@ def parse_args():
         default=None,
         help="Path to the last saved checkpoint. 'results/vae.steps.pt'",
     )
-    parser.add_argument("--optimizer",type=str,
+    parser.add_argument(
+        "--optimizer",type=str,
         default='Lion',
         help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Adam",
-    )    
-    parser.add_argument("--weight_decay", type=float,
-                        default=0.0,
-                        help="Optimizer weight_decay to use. Default: 0.0",
-                        )    
-   
+    )
+    parser.add_argument(
+        "--weight_decay", type=float,
+        default=0.0,
+        help="Optimizer weight_decay to use. Default: 0.0",
+    )
+
     # Parse the argument
     return parser.parse_args()
 
@@ -288,6 +298,7 @@ def main():
         validation_image_scale=args.validation_image_scale,
         only_save_last_checkpoint=args.only_save_last_checkpoint,
         optimizer=args.optimizer,
+        use_8bit_adam=args.use_8bit_adam
     )
 
     trainer.train()

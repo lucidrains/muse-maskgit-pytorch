@@ -13,7 +13,7 @@ from lion_pytorch import Lion
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid, save_image
-
+import bitsandbytes as bnb
 
 from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
 
@@ -74,6 +74,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         only_save_last_checkpoint=False,
         optimizer='Adam',
         weight_decay=0.0,
+        use_8bit_adam=False
     ):
         super().__init__(
             dataloader,
@@ -102,14 +103,24 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
 
         # optimizers
         if optimizer == 'Adam':
-            self.optim = Adam(vae_parameters, lr=lr, weight_decay=weight_decay)
-            self.discr_optim = Adam(discr_parameters, lr=lr, weight_decay=weight_decay)
+            if use_8bit_adam:
+                self.optim = bnb.optim.Adam8bit(vae_parameters, lr=lr)
+                self.discr_optim = bnb.optim.Adam8bit(discr_parameters, lr=lr)
+            else:
+                self.optim = Adam(vae_parameters, lr=lr)
+                self.discr_optim = Adam(discr_parameters, lr=lr)
         elif optimizer == 'AdamW':
-                self.optim = AdamW(vae_parameters, lr=lr, weight_decay=weight_decay)
-                self.discr_optim = AdamW(discr_parameters, lr=lr)            
+            if use_8bit_adam:
+                self.optim = bnb.optim.AdamW8bit(vae_parameters, lr=lr)
+                self.discr_optim = bnb.optim.AdamW8bit(discr_parameters, lr=lr)
+            else:
+                self.optim = AdamW(vae_parameters, lr=lr)
+                self.discr_optim = AdamW(discr_parameters, lr=lr)
         elif optimizer == 'Lion':
             self.optim = Lion(vae_parameters, lr=lr, weight_decay=weight_decay)
             self.discr_optim = Lion(discr_parameters, lr=lr, weight_decay=weight_decay)
+            if use_8bit_adam:
+                print("8bit is not supported with the Lion optimiser, Using standard Lion instead.")
         else:
             print(f"{optimizer} optimizer not supported yet.")
 

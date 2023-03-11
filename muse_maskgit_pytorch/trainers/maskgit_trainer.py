@@ -14,6 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid, save_image
 from PIL import Image
 from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
+import bitsandbytes as bnb
 
 from einops import rearrange
 
@@ -70,6 +71,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         only_save_last_checkpoint=False,
         optimizer="Lion",
         weight_decay=0.0,
+        use_8bit_adam=False
     ):
         super().__init__(
             dataloader,
@@ -104,11 +106,19 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
 
         # optimizers
         if optimizer == "Adam":
-            self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
+            if use_8bit_adam:
+                self.optim = bnb.optim.Adam8bit(transformer_parameters, lr=lr)
+            else:
+                self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
         elif optimizer == "AdamW":
-            self.optim = AdamW(transformer_parameters, lr=lr, weight_decay=weight_decay)
+            if use_8bit_adam:
+                self.optim = bnb.optim.AdamW8bit(transformer_parameters, lr=lr)
+            else:
+                self.optim = AdamW(transformer_parameters, lr=lr, weight_decay=weight_decay)
         elif optimizer == "Lion":
             self.optim = Lion(transformer_parameters, lr=lr, weight_decay=weight_decay)
+            if use_8bit_adam:
+                print("8bit is not supported with the Lion optimiser, Using standard Lion instead.")
         else:
             print(f"{optimizer} optimizer not supported yet.")
 
