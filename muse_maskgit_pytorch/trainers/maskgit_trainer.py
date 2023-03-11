@@ -107,12 +107,12 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         # optimizers
         if optimizer == "Adam":
             if use_8bit_adam:
-                self.optim = bnb.optim.Adam8bit(transformer_parameters, lr=lr)
+                self.optim = bnb.optim.Adam8bit(transformer_parameters, lr=lr, weight_decay=weight_decay)
             else:
                 self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
         elif optimizer == "AdamW":
             if use_8bit_adam:
-                self.optim = bnb.optim.AdamW8bit(transformer_parameters, lr=lr)
+                self.optim = bnb.optim.AdamW8bit(transformer_parameters, lr=lr, weight_decay=weight_decay)
             else:
                 self.optim = AdamW(transformer_parameters, lr=lr, weight_decay=weight_decay)
         elif optimizer == "Lion":
