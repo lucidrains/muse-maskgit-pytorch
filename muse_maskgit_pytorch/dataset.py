@@ -92,7 +92,7 @@ def get_dataset_from_dataroot(
 ):
     if os.path.exists(save_path):
         return load_from_disk(save_path)
-    image_paths = list(Path(data_root).rglob("*.[jJ][pP][gG]"))
+    image_paths = list(Path(data_root).rglob("*.[jJ][pP][gG]|*.[pP][nN][gG]|*.[jJ][pP][eE][gG]"))
     random.shuffle(image_paths)
     data_dict = {image_column: [], caption_column: []}
     for image_path in tqdm(image_paths):
