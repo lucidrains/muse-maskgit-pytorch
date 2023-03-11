@@ -118,7 +118,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         elif optimizer == "Lion":
             self.optim = Lion(transformer_parameters, lr=lr, weight_decay=weight_decay)
             if use_8bit_adam:
-                print("8bit is not supported with the Lion optimiser, Using standard Lion instead.")
+                print("8bit is not supported by the Lion optimiser, Using standard Lion instead.")
         else:
             print(f"{optimizer} optimizer not supported yet.")
 
