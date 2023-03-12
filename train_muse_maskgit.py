@@ -361,7 +361,7 @@ def main():
         dataloader,
         validation_dataloader,
         accelerator,
-        current_step=current_step,
+        current_step=current_step+1 if current_step != 0 else current_step,
         num_train_steps=args.num_train_steps,
         batch_size=args.batch_size,
         lr=args.lr,
