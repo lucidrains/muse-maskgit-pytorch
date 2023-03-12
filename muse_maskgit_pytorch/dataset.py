@@ -124,7 +124,8 @@ def get_dataset_from_dataroot(
         if os.stat(save_path).st_mtime - os.stat(data_root).st_mtime > 1:
             return load_from_disk(save_path)
         else:
-            print ("The data_root folder has being updated recently. Updating previously saved dataset.")
+            print ("The data_root folder has being updated recently. Removing previously saved dataset and updating it.")
+            os.removedirs(save_path)
     
     
     extensions = ["jpg", "jpeg", "png", "webp"]
