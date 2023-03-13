@@ -73,6 +73,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         validation_image_scale=1,
         only_save_last_checkpoint=False,
         optimizer="Adam",
+        weight_decay=0.0,
     ):
         super().__init__(
             dataloader,
@@ -101,14 +102,14 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
 
         # optimizers
         if optimizer == "Adam":
-            self.optim = Adam(vae_parameters, lr=lr)
-            self.discr_optim = Adam(discr_parameters, lr=lr)
+            self.optim = Adam(vae_parameters, lr=lr, weight_decay=weight_decay)
+            self.discr_optim = Adam(discr_parameters, lr=lr, weight_decay=weight_decay)
         elif optimizer == "AdamW":
-            self.optim = AdamW(vae_parameters, lr=lr)
+            self.optim = AdamW(vae_parameters, lr=lr, weight_decay=weight_decay)
             self.discr_optim = AdamW(discr_parameters, lr=lr)
         elif optimizer == "Lion":
-            self.optim = Lion(vae_parameters, lr=lr)
-            self.discr_optim = Lion(discr_parameters, lr=lr)
+            self.optim = Lion(vae_parameters, lr=lr, weight_decay=weight_decay)
+            self.discr_optim = Lion(discr_parameters, lr=lr, weight_decay=weight_decay)
         else:
             print(f"{optimizer} optimizer not supported yet.")
 

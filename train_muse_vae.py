@@ -4,7 +4,12 @@ from torchvision.utils import save_image
 from pathlib import Path
 from datasets import load_dataset
 import os
-from muse_maskgit_pytorch import VQGanVAE, VQGanVAETrainer, get_accelerator, VQGanVAETaming
+from muse_maskgit_pytorch import (
+    VQGanVAE,
+    VQGanVAETrainer,
+    get_accelerator,
+    VQGanVAETaming,
+)
 from muse_maskgit_pytorch.dataset import (
     get_dataset_from_dataroot,
     ImageDataset,
@@ -207,7 +212,12 @@ def parse_args():
         default="Lion",
         help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Lion",
     )
-
+    parser.add_argument(
+        "--weight_decay",
+        type=float,
+        default=0.0,
+        help="Optimizer weight_decay to use. Default: 0.0",
+    )
     # Parse the argument
     return parser.parse_args()
 

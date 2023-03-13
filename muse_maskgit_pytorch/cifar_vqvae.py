@@ -10,27 +10,42 @@ import math
 
 
 class VQEmbeddingEMA(nn.Module):
-    def __init__(self, latent_dim, num_embeddings, embedding_dim, commitment_cost=0.25, decay=0.999, epsilon=1e-5):
+    def __init__(
+        self,
+        latent_dim,
+        num_embeddings,
+        embedding_dim,
+        commitment_cost=0.25,
+        decay=0.999,
+        epsilon=1e-5,
+    ):
         super(VQEmbeddingEMA, self).__init__()
         self.commitment_cost = commitment_cost
         self.decay = decay
         self.epsilon = epsilon
 
         embedding = torch.zeros(latent_dim, num_embeddings, embedding_dim)
-        embedding.uniform_(-1/num_embeddings, 1/num_embeddings)
+        embedding.uniform_(-1 / num_embeddings, 1 / num_embeddings)
         self.register_buffer("embedding", embedding)
         self.register_buffer("ema_count", torch.zeros(latent_dim, num_embeddings))
         self.register_buffer("ema_weight", self.embedding.clone())
+
     def forward_from_indices(self, indices):
         encodings = F.one_hot(indices, M).float()
-        quantized = torch.gather(self.embedding, 1, indices.unsqueeze(-1).expand(-1, -1, D))
+        quantized = torch.gather(
+            self.embedding, 1, indices.unsqueeze(-1).expand(-1, -1, D)
+        )
         quantized = quantized.view_as(x)
 
         if self.training:
-            self.ema_count = self.decay * self.ema_count + (1 - self.decay) * torch.sum(encodings, dim=1)
+            self.ema_count = self.decay * self.ema_count + (1 - self.decay) * torch.sum(
+                encodings, dim=1
+            )
 
             n = torch.sum(self.ema_count, dim=-1, keepdim=True)
-            self.ema_count = (self.ema_count + self.epsilon) / (n + M * self.epsilon) * n
+            self.ema_count = (
+                (self.ema_count + self.epsilon) / (n + M * self.epsilon) * n
+            )
 
             dw = torch.bmm(encodings.transpose(1, 2), x_flat)
             self.ema_weight = self.decay * self.ema_weight + (1 - self.decay) * dw
@@ -43,9 +58,17 @@ class VQEmbeddingEMA(nn.Module):
         quantized = x + (quantized - x).detach()
 
         avg_probs = torch.mean(encodings, dim=1)
-        perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10), dim=-1))
+        perplexity = torch.exp(
+            -torch.sum(avg_probs * torch.log(avg_probs + 1e-10), dim=-1)
+        )
 
-        return quantized.permute(1, 0, 4, 2, 3).reshape(B, C, H, W), loss, perplexity.sum(), indices
+        return (
+            quantized.permute(1, 0, 4, 2, 3).reshape(B, C, H, W),
+            loss,
+            perplexity.sum(),
+            indices,
+        )
+
     def forward(self, x):
         B, C, H, W = x.size()
         N, M, D = self.embedding.size()
@@ -54,10 +77,14 @@ class VQEmbeddingEMA(nn.Module):
         x = x.view(B, N, D, H, W).permute(1, 0, 3, 4, 2)
         x_flat = x.detach().reshape(N, -1, D)
 
-        distances = torch.baddbmm(torch.sum(self.embedding ** 2, dim=2).unsqueeze(1) +
-                                  torch.sum(x_flat ** 2, dim=2, keepdim=True),
-                                  x_flat, self.embedding.transpose(1, 2),
-                                  alpha=-2.0, beta=1.0)
+        distances = torch.baddbmm(
+            torch.sum(self.embedding**2, dim=2).unsqueeze(1)
+            + torch.sum(x_flat**2, dim=2, keepdim=True),
+            x_flat,
+            self.embedding.transpose(1, 2),
+            alpha=-2.0,
+            beta=1.0,
+        )
 
         indices = torch.argmin(distances, dim=-1)
         return self.forward_from_indices(indices)
@@ -67,8 +94,10 @@ class VQEmbeddingGSSoft(nn.Module):
     def __init__(self, latent_dim, num_embeddings, embedding_dim):
         super(VQEmbeddingGSSoft, self).__init__()
 
-        self.embedding = nn.Parameter(torch.Tensor(latent_dim, num_embeddings, embedding_dim))
-        nn.init.uniform_(self.embedding, -1/num_embeddings, 1/num_embeddings)
+        self.embedding = nn.Parameter(
+            torch.Tensor(latent_dim, num_embeddings, embedding_dim)
+        )
+        nn.init.uniform_(self.embedding, -1 / num_embeddings, 1 / num_embeddings)
 
     def forward(self, x):
         B, C, H, W = x.size()
@@ -78,10 +107,14 @@ class VQEmbeddingGSSoft(nn.Module):
         x = x.view(B, N, D, H, W).permute(1, 0, 3, 4, 2)
         x_flat = x.reshape(N, -1, D)
 
-        distances = torch.baddbmm(torch.sum(self.embedding ** 2, dim=2).unsqueeze(1) +
-                                  torch.sum(x_flat ** 2, dim=2, keepdim=True),
-                                  x_flat, self.embedding.transpose(1, 2),
-                                  alpha=-2.0, beta=1.0)
+        distances = torch.baddbmm(
+            torch.sum(self.embedding**2, dim=2).unsqueeze(1)
+            + torch.sum(x_flat**2, dim=2, keepdim=True),
+            x_flat,
+            self.embedding.transpose(1, 2),
+            alpha=-2.0,
+            beta=1.0,
+        )
         distances = distances.view(N, B, H, W, M)
 
         dist = RelaxedOneHotCategorical(0.5, logits=-distances)
@@ -100,9 +133,15 @@ class VQEmbeddingGSSoft(nn.Module):
         KL = KL.sum(dim=(0, 2, 3, 4)).mean()
 
         avg_probs = torch.mean(samples, dim=1)
-        perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10), dim=-1))
+        perplexity = torch.exp(
+            -torch.sum(avg_probs * torch.log(avg_probs + 1e-10), dim=-1)
+        )
 
-        return quantized.permute(1, 0, 4, 2, 3).reshape(B, C, H, W), KL, perplexity.sum()
+        return (
+            quantized.permute(1, 0, 4, 2, 3).reshape(B, C, H, W),
+            KL,
+            perplexity.sum(),
+        )
 
 
 class Residual(nn.Module):
@@ -114,7 +153,7 @@ class Residual(nn.Module):
             nn.BatchNorm2d(channels),
             nn.ReLU(True),
             nn.Conv2d(channels, channels, 1, bias=False),
-            nn.BatchNorm2d(channels)
+            nn.BatchNorm2d(channels),
         )
 
     def forward(self, x):
@@ -132,7 +171,7 @@ class Encoder(nn.Module):
             nn.BatchNorm2d(channels),
             Residual(channels),
             Residual(channels),
-            nn.Conv2d(channels, latent_dim * embedding_dim, 1)
+            nn.Conv2d(channels, latent_dim * embedding_dim, 1),
         )
 
     def forward(self, x):
@@ -153,7 +192,7 @@ class Decoder(nn.Module):
             nn.ConvTranspose2d(channels, channels, 4, 2, 1, bias=False),
             nn.BatchNorm2d(channels),
             nn.ReLU(True),
-            nn.Conv2d(channels, 3 * 256, 1)
+            nn.Conv2d(channels, 3 * 256, 1),
         )
 
     def forward(self, x):
