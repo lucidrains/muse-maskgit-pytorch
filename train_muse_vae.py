@@ -4,7 +4,7 @@ from torchvision.utils import save_image
 from pathlib import Path
 from datasets import load_dataset
 import os
-from muse_maskgit_pytorch import VQGanVAE, VQGanVAETrainer, get_accelerator
+from muse_maskgit_pytorch import VQGanVAE, VQGanVAETrainer, get_accelerator, VQGanVAETaming
 from muse_maskgit_pytorch.dataset import (
     get_dataset_from_dataroot,
     ImageDataset,
@@ -189,6 +189,19 @@ def parse_args():
         help="Path to the last saved checkpoint. 'results/vae.steps.pt'",
     )
     parser.add_argument(
+        "--taming_model_path",
+        type=str,
+        default=None,
+        help="path to your trained VQGAN weights. This should be a .ckpt file. (only valid when taming option is enabled)",
+    )
+
+    parser.add_argument(
+        "--taming_config_path",
+        type=str,
+        default=None,
+        help="path to your trained VQGAN config. This should be a .yaml file. (only valid when taming option is enabled)",
+    )
+    parser.add_argument(
         "--optimizer",
         type=str,
         default="Lion",
@@ -231,8 +244,15 @@ def main():
         dataset = load_dataset(args.dataset_name)["train"]
 
     vae = VQGanVAE(dim=args.dim, vq_codebook_size=args.vq_codebook_size)
-
-    if args.resume_path:
+    if args.taming_model_path:
+        print("Loading Taming VQGanVAE")
+        vae = VQGanVAETaming(
+            vqgan_model_path=args.taming_model_path,
+            vqgan_config_path=args.taming_config_path,
+        )
+        args.num_tokens = vae.codebook_size
+        args.seq_len = vae.get_encoded_fmap_size(args.image_size) ** 2
+    elif args.resume_path:
         accelerator.print(f"Resuming VAE from: {args.resume_path}")
         vae.load(args.resume_path)
 
@@ -245,7 +265,7 @@ def main():
         if current_step == 0:
             accelerator.print("No step found for the VAE model.")
     else:
-        accelerator.print("No step found for the MaskGit model.")
+        accelerator.print("No step found for the VAE model.")
         current_step = 0
 
     dataset = ImageDataset(

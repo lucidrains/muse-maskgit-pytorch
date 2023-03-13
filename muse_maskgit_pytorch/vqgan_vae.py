@@ -15,7 +15,7 @@ import torchvision
 
 from einops import rearrange, reduce, repeat
 from einops.layers.torch import Rearrange
-
+import timm
 # constants
 
 MList = nn.ModuleList
@@ -366,6 +366,7 @@ class VQGanVAE(nn.Module):
         vq_use_cosine_sim=True,
         use_vgg_and_gan=True,
         discr_layers=4,
+        timm_backend=None,
         **kwargs,
     ):
         super().__init__()
