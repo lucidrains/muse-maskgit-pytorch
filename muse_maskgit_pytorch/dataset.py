@@ -38,7 +38,7 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, index):
         image = self.dataset[index][self.image_column]
-        return self.transform(image)
+        return self.transform(image)-0.5
 
 
 class ImageTextDataset(ImageDataset):
