@@ -72,7 +72,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         clear_previous_experiments=False,
         validation_image_scale=1,
         only_save_last_checkpoint=False,
-        optimizer='Adam',
+        optimizer="Adam",
         weight_decay=0.0,
     ):
         super().__init__(
@@ -101,13 +101,13 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         vae_parameters = all_parameters - discr_parameters
 
         # optimizers
-        if optimizer == 'Adam':
+        if optimizer == "Adam":
             self.optim = Adam(vae_parameters, lr=lr, weight_decay=weight_decay)
             self.discr_optim = Adam(discr_parameters, lr=lr, weight_decay=weight_decay)
-        elif optimizer == 'AdamW':
-                self.optim = AdamW(vae_parameters, lr=lr, weight_decay=weight_decay)
-                self.discr_optim = AdamW(discr_parameters, lr=lr)            
-        elif optimizer == 'Lion':
+        elif optimizer == "AdamW":
+            self.optim = AdamW(vae_parameters, lr=lr, weight_decay=weight_decay)
+            self.discr_optim = AdamW(discr_parameters, lr=lr)
+        elif optimizer == "Lion":
             self.optim = Lion(vae_parameters, lr=lr, weight_decay=weight_decay)
             self.discr_optim = Lion(discr_parameters, lr=lr, weight_decay=weight_decay)
         else:

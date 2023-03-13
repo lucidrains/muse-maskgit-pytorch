@@ -1,3 +1,4 @@
+*.ipynb
 wandb
 results
 models
@@ -6,6 +7,7 @@ taming
 ~
 input.png
 output.png
+muse_maskgit_pytorch/wt.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
