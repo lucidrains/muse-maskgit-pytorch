@@ -29,9 +29,7 @@ class ImageDataset(Dataset):
             transform_list.append(T.RandomHorizontalFlip())
         if center_crop:
             transform_list.append(T.CenterCrop(image_size))
-        normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         transform_list.append(T.ToTensor())
-        transform_list.append(normalize)
         self.transform = T.Compose(transform_list)
 
     def __len__(self):
@@ -39,7 +37,7 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, index):
         image = self.dataset[index][self.image_column]
-        return self.transform(image)
+        return self.transform(image)-0.5
 
 
 class ImageTextDataset(ImageDataset):
