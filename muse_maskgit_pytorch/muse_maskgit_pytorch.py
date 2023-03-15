@@ -5,8 +5,8 @@ from functools import partial
 import torch
 import torch.nn.functional as F
 from torch import nn, einsum
-import Pathlib
-from Pathlib import Path
+import pathlib
+from pathlib import Path
 import torchvision.transforms as T
 
 from typing import Callable, Optional, List
