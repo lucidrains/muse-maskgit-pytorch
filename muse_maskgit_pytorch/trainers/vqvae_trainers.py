@@ -104,15 +104,31 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         # optimizers
         if optimizer == 'Adam':
             if use_8bit_adam:
-                self.optim = bnb.optim.Adam8bit(vae_parameters, lr=lr, weight_decay=weight_decay)
-                self.discr_optim = bnb.optim.Adam8bit(discr_parameters, lr=lr, weight_decay=weight_decay)
+                try:
+                    self.optim = bnb.optim.Adam8bit(vae_parameters, lr=lr, weight_decay=weight_decay)
+                    self.discr_optim = bnb.optim.Adam8bit(discr_parameters, lr=lr, weight_decay=weight_decay)
+                except Exception as e:  # bitsandbytes raises a broad exception for cuda setup errors
+                    error = str(e)
+                    if "CUDA SETUP" in error:
+                        self.optim = Adam(vae_parameters, lr=lr, weight_decay=weight_decay)
+                        self.discr_optim = Adam(discr_parameters, lr=lr, weight_decay=weight_decay)
+                    else:
+                        raise e
             else:
                 self.optim = Adam(vae_parameters, lr=lr, weight_decay=weight_decay)
                 self.discr_optim = Adam(discr_parameters, lr=lr, weight_decay=weight_decay)
         elif optimizer == 'AdamW':
             if use_8bit_adam:
-                self.optim = bnb.optim.AdamW8bit(vae_parameters, lr=lr, weight_decay=weight_decay)
-                self.discr_optim = bnb.optim.AdamW8bit(discr_parameters, lr=lr, weight_decay=weight_decay)
+                try:
+                    self.optim = bnb.optim.AdamW8bit(vae_parameters, lr=lr, weight_decay=weight_decay)
+                    self.discr_optim = bnb.optim.AdamW8bit(discr_parameters, lr=lr, weight_decay=weight_decay)
+                except Exception as e:  # bitsandbytes raises a broad exception for cuda setup errors
+                    error = str(e)
+                    if "CUDA SETUP" in error:
+                        self.optim = AdamW(vae_parameters, lr=lr, weight_decay=weight_decay)
+                        self.discr_optim = AdamW(discr_parameters, lr=lr, weight_decay=weight_decay)
+                    else:
+                        raise e
             else:
                 self.optim = AdamW(vae_parameters, lr=lr, weight_decay=weight_decay)
                 self.discr_optim = AdamW(discr_parameters, lr=lr, weight_decay=weight_decay)

@@ -107,12 +107,26 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         # optimizers
         if optimizer == "Adam":
             if use_8bit_adam:
-                self.optim = bnb.optim.Adam8bit(transformer_parameters, lr=lr, weight_decay=weight_decay)
+                try:
+                    self.optim = bnb.optim.Adam8bit(transformer_parameters, lr=lr, weight_decay=weight_decay)
+                except Exception as e:  # bitsandbytes raises a broad exception for cuda setup errors
+                    error = str(e)
+                    if "CUDA SETUP" in error:
+                        self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
+                    else:
+                        raise e
             else:
                 self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
         elif optimizer == "AdamW":
             if use_8bit_adam:
-                self.optim = bnb.optim.AdamW8bit(transformer_parameters, lr=lr, weight_decay=weight_decay)
+                try:
+                    self.optim = bnb.optim.AdamW8bit(transformer_parameters, lr=lr, weight_decay=weight_decay)
+                except Exception as e:  # bitsandbytes raises a broad exception for cuda setup errors
+                    error = str(e)
+                    if "CUDA SETUP" in error:
+                        self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
+                    else:
+                        raise e
             else:
                 self.optim = AdamW(transformer_parameters, lr=lr, weight_decay=weight_decay)
         elif optimizer == "Lion":
