@@ -1,23 +1,9 @@
-from pathlib import Path
-from shutil import rmtree
-
-from beartype import beartype
-
-import torch
-from torch import nn
-
 from torch.optim import Adam, AdamW
 from lion_pytorch import Lion
 
-from torch.utils.data import DataLoader, random_split
-from torch.utils.tensorboard import SummaryWriter
-from torchvision.utils import make_grid, save_image
+from torchvision.utils import save_image
 from PIL import Image
 from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
-
-from einops import rearrange
-
-from accelerate import Accelerator, DistributedType, DistributedDataParallelKwargs
 
 from ema_pytorch import EMA
 from diffusers.optimization import get_scheduler
@@ -28,16 +14,14 @@ from muse_maskgit_pytorch.trainers.base_accelerated_trainer import (
 )
 from muse_maskgit_pytorch.t5 import t5_encode_text_from_encoded
 import torch.nn.functional as F
-import os
 
+import os
 
 def noop(*args, **kwargs):
     pass
 
-
 def exists(val):
     return val is not None
-
 
 class MaskGitTrainer(BaseAcceleratedTrainer):
     def __init__(
@@ -156,7 +140,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
 
         save_image(images, save_file)
         super().log_validation_images(
-            [Image.open(save_file)], step, [" ".join(validation_prompts)]
+            [Image.open(save_file)], step, ["|".join(validation_prompts)]
         )
 
     def train_step(self):
