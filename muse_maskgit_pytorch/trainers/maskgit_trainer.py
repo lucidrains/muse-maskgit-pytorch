@@ -17,11 +17,14 @@ import torch.nn.functional as F
 
 import os
 
+
 def noop(*args, **kwargs):
     pass
 
+
 def exists(val):
     return val is not None
+
 
 class MaskGitTrainer(BaseAcceleratedTrainer):
     def __init__(

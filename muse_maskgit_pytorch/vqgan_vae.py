@@ -16,6 +16,7 @@ import torchvision
 from einops import rearrange, reduce, repeat
 from einops.layers.torch import Rearrange
 import timm
+from diffusers.models.vae import Encoder, Decoder
 
 # constants
 
@@ -344,6 +345,44 @@ class ResBlock(nn.Module):
 
     def forward(self, x):
         return self.net(x) + x
+
+
+class TimmFeatureEncDec(nn.Module):
+    def __init__(self, backbone="convnext_base"):
+        self.timm_model = timm.create_model(
+            backbone,
+            pretrained=True,
+            features_only=True,
+            exportable=True,
+            out_indices=self.idx,
+        )
+        return
+
+    def encode(self, x):
+        for enc in self.encoders:
+            x = enc(x)
+        return x
+
+    def decode(self, x):
+        for dec in self.decoders:
+            x = dec(x)
+        return x
+
+
+class HuggingfaceEncDec(nn.Module):
+    def __init__(self):
+        return
+
+    def forward(self):
+        return
+
+
+class WaveletTransformerEncDec(nn.Module):
+    def __init__(self):
+        return
+
+    def forward(self):
+        return
 
 
 # main vqgan-vae classes

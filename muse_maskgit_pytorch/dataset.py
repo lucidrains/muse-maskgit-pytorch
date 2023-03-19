@@ -38,7 +38,7 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, index):
         image = self.dataset[index][self.image_column]
-        return self.transform(image)-0.5
+        return self.transform(image) - 0.5
 
 
 class ImageTextDataset(ImageDataset):
@@ -87,6 +87,7 @@ class ImageTextDataset(ImageDataset):
         attn_mask = encoded.attention_mask
         return self.transform(image), input_ids[0], attn_mask[0]
 
+
 def get_directory_size(path):
     total_size = 0
     for dirpath, dirnames, filenames in os.walk(path):
@@ -94,6 +95,7 @@ def get_directory_size(path):
             fp = os.path.join(dirpath, f)
             total_size += os.path.getsize(fp)
     return total_size
+
 
 def save_dataset_with_progress(dataset, save_path):
     # Estimate the total size of the dataset in bytes
@@ -109,8 +111,11 @@ def save_dataset_with_progress(dataset, save_path):
             if os.path.exists(save_path):
                 size = get_directory_size(save_path)
                 # Update the progress bar based on the current size of the saved file
-                pbar.update(size - pbar.n)  # Update by the difference between current and previous size
+                pbar.update(
+                    size - pbar.n
+                )  # Update by the difference between current and previous size
             time.sleep(1)
+
 
 def get_dataset_from_dataroot(
     data_root, image_column="image", caption_column="caption", save_path="dataset"
@@ -119,21 +124,12 @@ def get_dataset_from_dataroot(
     if os.path.islink(data_root):
         data_root = os.path.realpath(data_root)
 
-    if os.path.exists(save_path):
-        # if the data_root folder is newer than the save_path we reload the
-        if os.stat(save_path).st_mtime - os.stat(data_root).st_mtime > 1:
-            return load_from_disk(save_path)
-        else:
-            print ("The data_root folder has being updated recently. Removing previously saved dataset and updating it.")
-            os.removedirs(save_path)
-    
-    
     extensions = ["jpg", "jpeg", "png", "webp"]
     image_paths = []
-    
+
     for ext in extensions:
-        image_paths.extend(list(Path(data_root).rglob(f"*.{ext}")))    
-    
+        image_paths.extend(list(Path(data_root).rglob(f"*.{ext}")))
+
     random.shuffle(image_paths)
     data_dict = {image_column: [], caption_column: []}
     for image_path in tqdm(image_paths):
@@ -151,7 +147,7 @@ def get_dataset_from_dataroot(
         data_dict[caption_column].append(captions)
     dataset = datasets.Dataset.from_dict(data_dict)
     dataset = dataset.cast_column(image_column, Image())
-    #dataset.save_to_disk(save_path)
+    # dataset.save_to_disk(save_path)
     save_dataset_with_progress(dataset, save_path)
     return dataset
 
