@@ -254,10 +254,12 @@ def parse_args():
         default="Lion",
         help="Optimizer to use. Choose between: ['Adam', 'AdamW','Lion']. Default: Lion",
     )
-    parser.add_argument("--weight_decay", type=float,
-                        default=0.0,
-                        help="Optimizer weight_decay to use. Default: 0.0",
-                        )      
+    parser.add_argument(
+        "--weight_decay",
+        type=float,
+        default=0.0,
+        help="Optimizer weight_decay to use. Default: 0.0",
+    )
     # Parse the argument
     return parser.parse_args()
 
@@ -366,7 +368,7 @@ def main():
         dataloader,
         validation_dataloader,
         accelerator,
-        current_step=current_step,
+        current_step=current_step+1 if current_step != 0 else current_step,
         num_train_steps=args.num_train_steps,
         batch_size=args.batch_size,
         lr=args.lr,

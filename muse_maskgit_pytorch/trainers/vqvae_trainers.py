@@ -71,7 +71,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         clear_previous_experiments=False,
         validation_image_scale=1,
         only_save_last_checkpoint=False,
-        optimizer='Adam',
+        optimizer="Adam",
         weight_decay=0.0,
         use_8bit_adam=False
     ):
