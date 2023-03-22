@@ -14,7 +14,6 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid, save_image
 from PIL import Image
 from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
-import bitsandbytes as bnb
 
 from einops import rearrange
 
@@ -108,27 +107,27 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         if optimizer == "Adam":
             if use_8bit_adam:
                 try:
+                    import bitsandbytes as bnb
                     self.optim = bnb.optim.Adam8bit(transformer_parameters, lr=lr, weight_decay=weight_decay)
-                except Exception as e:  # bitsandbytes raises a broad exception for cuda setup errors
-                    error = str(e)
-                    if "CUDA SETUP" in error:
-                        self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
-                    else:
-                        raise e
+                except ImportError:  # bitsandbytes raises a broad exception for cuda setup errors
+                    print("Please install bitsandbytes to use 8-bit optimizers. You can do so by running `pip install "
+                          "bitsandbytes` | Defaulting to non 8-bit equivalent...")
+                    self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
             else:
                 self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
+
         elif optimizer == "AdamW":
             if use_8bit_adam:
                 try:
+                    import bitsandbytes as bnb
                     self.optim = bnb.optim.AdamW8bit(transformer_parameters, lr=lr, weight_decay=weight_decay)
-                except Exception as e:  # bitsandbytes raises a broad exception for cuda setup errors
-                    error = str(e)
-                    if "CUDA SETUP" in error:
-                        self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
-                    else:
-                        raise e
+                except ImportError:
+                    print("Please install bitsandbytes to use 8-bit optimizers. You can do so by running `pip install "
+                          "bitsandbytes` | Defaulting to non 8-bit equivalent...")
+                    self.optim = AdamW(transformer_parameters, lr=lr, weight_decay=weight_decay)
             else:
                 self.optim = AdamW(transformer_parameters, lr=lr, weight_decay=weight_decay)
+
         elif optimizer == "Lion":
             self.optim = Lion(transformer_parameters, lr=lr, weight_decay=weight_decay)
             if use_8bit_adam:
