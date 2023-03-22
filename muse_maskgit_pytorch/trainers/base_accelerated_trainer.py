@@ -15,7 +15,8 @@ import torch.nn.functional as F
 from accelerate import Accelerator, DistributedType, DistributedDataParallelKwargs
 
 from ema_pytorch import EMA
-
+from torch.optim import Adam, AdamW
+from lion_pytorch import Lion
 
 import numpy as np
 
@@ -97,7 +98,32 @@ def split_dataset(dataset, valid_frac, accelerator, seed=42):
 
 # main trainer class
 
+def get_optimizer(use_8bit_adam, optimizer, parameters, lr, weight_decay):
+    if use_8bit_adam:
+        try:
+            import bitsandbytes as bnb
+        except ImportError:  # bitsandbytes raises a broad exception for cuda setup errors
+            raise ImportError("Please install bitsandbytes to use 8-bit optimizers. You can do so by running `pip install "
+                        "bitsandbytes` | Defaulting to non 8-bit equivalent...")
+    # optimizers
+    if optimizer == "Adam":
+        if use_8bit_adam:
+            optim = bnb.optim.Adam8bit(parameters, lr=lr, weight_decay=weight_decay)
+        else:
+            optim = Adam(parameters, lr=lr, weight_decay=weight_decay)
+    elif optimizer == "AdamW":
+        if use_8bit_adam:
+            optim = bnb.optim.AdamW8bit(parameters, lr=lr, weight_decay=weight_decay)
+        else:
+            optim = AdamW(parameters, lr=lr, weight_decay=weight_decay)
 
+    elif optimizer == "Lion":
+        optim = Lion(parameters, lr=lr, weight_decay=weight_decay)
+        if use_8bit_adam:
+            print("8bit is not supported by the Lion optimiser, Using standard Lion instead.")
+    else:
+        raise NotImplementedError(f"{optimizer} optimizer not supported yet.")
+    return optim
 @beartype
 class BaseAcceleratedTrainer(nn.Module):
     def __init__(

@@ -1,6 +1,3 @@
-from torch.optim import Adam, AdamW
-from lion_pytorch import Lion
-
 from torchvision.utils import save_image
 from PIL import Image
 from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
@@ -11,6 +8,7 @@ from diffusers.optimization import get_scheduler
 from muse_maskgit_pytorch.muse_maskgit_pytorch import MaskGit
 from muse_maskgit_pytorch.trainers.base_accelerated_trainer import (
     BaseAcceleratedTrainer,
+    get_optimizer,
 )
 from muse_maskgit_pytorch.t5 import t5_encode_text_from_encoded
 import torch.nn.functional as F
@@ -89,38 +87,7 @@ class MaskGitTrainer(BaseAcceleratedTrainer):
         vae_parameters = set(self.model.vae.parameters())
         t5_parameters = set(self.model.transformer.t5.parameters())
         transformer_parameters = all_parameters - vae_parameters - t5_parameters
-
-        # optimizers
-        if optimizer == "Adam":
-            if use_8bit_adam:
-                try:
-                    import bitsandbytes as bnb
-                    self.optim = bnb.optim.Adam8bit(transformer_parameters, lr=lr, weight_decay=weight_decay)
-                except ImportError:  # bitsandbytes raises a broad exception for cuda setup errors
-                    print("Please install bitsandbytes to use 8-bit optimizers. You can do so by running `pip install "
-                          "bitsandbytes` | Defaulting to non 8-bit equivalent...")
-                    self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
-            else:
-                self.optim = Adam(transformer_parameters, lr=lr, weight_decay=weight_decay)
-
-        elif optimizer == "AdamW":
-            if use_8bit_adam:
-                try:
-                    import bitsandbytes as bnb
-                    self.optim = bnb.optim.AdamW8bit(transformer_parameters, lr=lr, weight_decay=weight_decay)
-                except ImportError:
-                    print("Please install bitsandbytes to use 8-bit optimizers. You can do so by running `pip install "
-                          "bitsandbytes` | Defaulting to non 8-bit equivalent...")
-                    self.optim = AdamW(transformer_parameters, lr=lr, weight_decay=weight_decay)
-            else:
-                self.optim = AdamW(transformer_parameters, lr=lr, weight_decay=weight_decay)
-
-        elif optimizer == "Lion":
-            self.optim = Lion(transformer_parameters, lr=lr, weight_decay=weight_decay)
-            if use_8bit_adam:
-                print("8bit is not supported by the Lion optimiser, Using standard Lion instead.")
-        else:
-            print(f"{optimizer} optimizer not supported yet.")
+        self.optim = get_optimizer(use_8bit_adam, optimizer, transformer_parameters, lr, weight_decay)
 
         self.lr_scheduler = get_scheduler(
             lr_scheduler_type,

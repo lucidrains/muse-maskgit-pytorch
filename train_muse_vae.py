@@ -19,7 +19,6 @@ from muse_maskgit_pytorch.dataset import (
 import argparse
 
 import torch.nn as nn
-import bitsandbytes as bnb
 from accelerate import init_empty_weights
 
 def parse_args():

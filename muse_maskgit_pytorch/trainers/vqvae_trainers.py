@@ -24,6 +24,7 @@ from ema_pytorch import EMA
 import numpy as np
 from muse_maskgit_pytorch.trainers.base_accelerated_trainer import (
     BaseAcceleratedTrainer,
+    get_optimizer,
 )
 from diffusers.optimization import get_scheduler
 
@@ -101,43 +102,7 @@ class VQGanVAETrainer(BaseAcceleratedTrainer):
         vae_parameters = all_parameters - discr_parameters
 
         # optimizers
-        if optimizer == 'Adam':
-            if use_8bit_adam:
-                try:
-                    import bitsandbytes as bnb
-                    self.optim = bnb.optim.Adam8bit(vae_parameters, lr=lr, weight_decay=weight_decay)
-                    self.discr_optim = bnb.optim.Adam8bit(discr_parameters, lr=lr, weight_decay=weight_decay)
-                except ImportError:
-                    print("Please install bitsandbytes to use 8-bit optimizers. You can do so by running `pip install "
-                          "bitsandbytes` | Defaulting to non 8-bit equivalent...")
-                    self.optim = Adam(vae_parameters, lr=lr, weight_decay=weight_decay)
-                    self.discr_optim = Adam(discr_parameters, lr=lr, weight_decay=weight_decay)
-            else:
-                self.optim = Adam(vae_parameters, lr=lr, weight_decay=weight_decay)
-                self.discr_optim = Adam(discr_parameters, lr=lr, weight_decay=weight_decay)
-
-        elif optimizer == 'AdamW':
-            if use_8bit_adam:
-                try:
-                    import bitsandbytes as bnb
-                    self.optim = bnb.optim.AdamW8bit(vae_parameters, lr=lr, weight_decay=weight_decay)
-                    self.discr_optim = bnb.optim.AdamW8bit(discr_parameters, lr=lr, weight_decay=weight_decay)
-                except ImportError:
-                    print("Please install bitsandbytes to use 8-bit optimizers. You can do so by running `pip install "
-                          "bitsandbytes` | Defaulting to non 8-bit equivalent...")
-                    self.optim = AdamW(vae_parameters, lr=lr, weight_decay=weight_decay)
-                    self.discr_optim = AdamW(discr_parameters, lr=lr, weight_decay=weight_decay)
-            else:
-                self.optim = AdamW(vae_parameters, lr=lr, weight_decay=weight_decay)
-                self.discr_optim = AdamW(discr_parameters, lr=lr, weight_decay=weight_decay)
-
-        elif optimizer == 'Lion':
-            self.optim = Lion(vae_parameters, lr=lr, weight_decay=weight_decay)
-            self.discr_optim = Lion(discr_parameters, lr=lr, weight_decay=weight_decay)
-            if use_8bit_adam:
-                print("8bit is not supported by the Lion optimiser, Using standard Lion instead.")
-        else:
-            print(f"{optimizer} optimizer not supported yet.")
+        self.optim = get_optimizer(use_8bit_adam, optimizer, vae_parameters, lr, weight_decay)
 
         self.lr_scheduler = get_scheduler(
             lr_scheduler_type,
