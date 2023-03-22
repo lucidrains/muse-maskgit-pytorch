@@ -28,6 +28,8 @@ setup(
         "pillow",
         "sentencepiece",
         "torch>=1.6",
+        "torchmetrics<0.8.0",
+        "pytorch-lightning<=1.7.7",
         "taming-transformers>=0.0.1",
         "transformers",
         "torch>=1.6",
