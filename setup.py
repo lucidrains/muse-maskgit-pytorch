@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
   name = 'muse-maskgit-pytorch',
   packages = find_packages(exclude=[]),
-  version = '0.1.1',
+  version = '0.1.2',
   license='MIT',
   description = 'MUSE - Text-to-Image Generation via Masked Generative Transformers, in Pytorch',
   author = 'Phil Wang',
@@ -21,7 +21,7 @@ setup(
     'accelerate',
     'beartype',
     'einops>=0.6',
-    'ema-pytorch',
+    'ema-pytorch>=0.2.2',
     'pillow',
     'sentencepiece',
     'torch>=1.6',
