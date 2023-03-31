@@ -2,6 +2,7 @@ from math import sqrt
 from random import choice
 from pathlib import Path
 from shutil import rmtree
+from functools import partial
 
 from beartype import beartype
 
@@ -35,6 +36,23 @@ def identity(t, *args, **kwargs):
 
 def noop(*args, **kwargs):
     pass
+
+def find_index(arr, cond):
+    for ind, el in enumerate(arr):
+        if cond(el):
+            return ind
+    return None
+
+def find_and_pop(arr, cond, default = None):
+    ind = find_index(arr, cond)
+
+    if exists(ind):
+        return arr.pop(ind)
+
+    if callable(default):
+        return default()
+
+    return default
 
 def cycle(dl):
     while True:
@@ -126,9 +144,15 @@ class VQGanVAETrainer(nn.Module):
 
         # instantiate accelerator
 
-        ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters = True)
-
         kwargs_handlers = accelerate_kwargs.get('kwargs_handlers', [])
+
+        ddp_kwargs = find_and_pop(
+            kwargs_handlers,
+            partial(isinstance, DistributedDataParallelKwargs),
+            partial(DistributedDataParallelKwargs, find_unused_parameters = True)
+        )
+
+        ddp_kwargs.find_unused_parameters = True
         kwargs_handlers.append(ddp_kwargs)
         accelerate_kwargs.update(kwargs_handlers = kwargs_handlers)
 
