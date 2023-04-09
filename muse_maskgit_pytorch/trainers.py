@@ -148,7 +148,7 @@ class VQGanVAETrainer(nn.Module):
 
         ddp_kwargs = find_and_pop(
             kwargs_handlers,
-            partial(isinstance, DistributedDataParallelKwargs),
+            lambda x: isinstance(x, DistributedDataParallelKwargs),
             partial(DistributedDataParallelKwargs, find_unused_parameters = True)
         )
 
