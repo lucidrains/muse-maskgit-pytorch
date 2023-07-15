@@ -17,6 +17,7 @@ from beartype import beartype
 
 from muse_maskgit_pytorch.vqgan_vae import VQGanVAE
 from muse_maskgit_pytorch.t5 import t5_encode_text, get_encoded_dim, DEFAULT_T5_NAME
+from muse_maskgit_pytorch.attend import Attend
 
 from tqdm.auto import tqdm
 
@@ -94,7 +95,9 @@ class Attention(nn.Module):
         dim_head = 64,
         heads = 8,
         cross_attend = False,
-        scale = 8
+        scale = 8,
+        flash = True,
+        dropout = 0.
     ):
         super().__init__()
         self.scale = scale
@@ -103,6 +106,12 @@ class Attention(nn.Module):
 
         self.cross_attend = cross_attend
         self.norm = LayerNorm(dim)
+
+        self.attend = Attend(
+            flash = flash,
+            dropout = dropout,
+            scale = scale
+        )
 
         self.null_kv = nn.Parameter(torch.randn(2, heads, 1, dim_head))
 
@@ -122,6 +131,7 @@ class Attention(nn.Module):
     ):
         assert not (exists(context) ^ self.cross_attend)
 
+        n = x.shape[-2]
         h, is_cross_attn = self.heads, exists(context)
 
         x = self.norm(x)
@@ -142,17 +152,11 @@ class Attention(nn.Module):
         q = q * self.q_scale
         k = k * self.k_scale
 
-        sim = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
-
         if exists(context_mask):
-            context_mask = rearrange(context_mask, 'b j -> b 1 1 j')
+            context_mask = repeat(context_mask, 'b j -> b h i j', h = h, i = n)
             context_mask = F.pad(context_mask, (1, 0), value = True)
 
-            mask_value = -torch.finfo(sim.dtype).max
-            sim = sim.masked_fill(~context_mask, mask_value)
-
-        attn = sim.softmax(dim = -1)
-        out = einsum('b h i j, b h j d -> b h i d', attn, v)
+        out = self.attend(q, k, v, mask = context_mask)
 
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
@@ -165,15 +169,16 @@ class TransformerBlocks(nn.Module):
         depth,
         dim_head = 64,
         heads = 8,
-        ff_mult = 4
+        ff_mult = 4,
+        flash = True
     ):
         super().__init__()
         self.layers = nn.ModuleList([])
 
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                Attention(dim = dim, dim_head = dim_head, heads = heads),
-                Attention(dim = dim, dim_head = dim_head, heads = heads, cross_attend = True),
+                Attention(dim = dim, dim_head = dim_head, heads = heads, flash = flash),
+                Attention(dim = dim, dim_head = dim_head, heads = heads, cross_attend = True, flash = flash),
                 FeedForward(dim = dim, mult = ff_mult)
             ]))
 
