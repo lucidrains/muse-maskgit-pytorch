@@ -285,10 +285,10 @@ images # List[PIL.Image.Image]
 ```
 
 ```bibtex
-@misc{gilmer2023intriguing
-    title  = {Intriguing Properties of Transformer Training Instabilities},
-    author = {Justin Gilmer, Andrea Schioppa, and Jeremy Cohen},
-    year   = {2023},
-    status = {to be published - one attention stabilization technique is circulating within Google Brain, being used by multiple teams}
+@inproceedings{dao2022flashattention,
+    title   = {Flash{A}ttention: Fast and Memory-Efficient Exact Attention with {IO}-Awareness},
+    author  = {Dao, Tri and Fu, Daniel Y. and Ermon, Stefano and Rudra, Atri and R{\'e}, Christopher},
+    booktitle = {Advances in Neural Information Processing Systems},
+    year    = {2022}
 }
 ```
