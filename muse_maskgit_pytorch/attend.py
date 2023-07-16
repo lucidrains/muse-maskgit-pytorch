@@ -6,6 +6,7 @@ import torch
 from torch import nn, einsum
 import torch.nn.functional as F
 
+from memory_efficient_attention_pytorch.flash_attention import FlashAttentionFunction
 # constants
 
 AttentionConfig = namedtuple('AttentionConfig', ['enable_flash', 'enable_math', 'enable_mem_efficient'])
@@ -47,8 +48,8 @@ class Attend(nn.Module):
 
         # determine efficient attention configs for cuda and cpu
 
-        self.cpu_config = AttentionConfig(True, True, True)
         self.cuda_config = None
+        self.no_hardware_detected = False
 
         if not torch.cuda.is_available() or not flash:
             return
@@ -60,7 +61,7 @@ class Attend(nn.Module):
             self.cuda_config = AttentionConfig(True, False, False)
         else:
             print_once('Non-A100 GPU detected, using math or mem efficient attention if input tensor is on cuda')
-            self.cuda_config = AttentionConfig(False, True, True)
+            self.cuda_config = AttentionConfig(False, True, False)
 
     def flash_attn(self, q, k, v, mask = None):
         default_scale = q.shape[-1] ** -0.5
@@ -77,18 +78,31 @@ class Attend(nn.Module):
         q = q * (rescale ** 0.5)
         k = k * (rescale ** 0.5)
 
-        # Check if there is a compatible device for flash attention
+        # use naive implementation if not correct hardware
 
-        config = self.cuda_config if is_cuda else self.cpu_config
+        # the below logic can also incorporate whether masking is needed or not
 
+        use_naive = not is_cuda or not exists(self.cuda_config)
+
+        if not is_cuda or self.no_hardware_detected:
+            return FlashAttentionFunction.apply(q, k, v, mask, False, 512, 512)
+
+        # use naive implementation
         # pytorch 2.0 flash attn: q, k, v, mask, dropout, causal, softmax_scale
 
-        with torch.backends.cuda.sdp_kernel(**config._asdict()):
-            out = F.scaled_dot_product_attention(
-                q, k, v,
-                attn_mask = mask,
-                dropout_p = self.dropout if self.training else 0.
-            )
+        try:
+            raise Exception()
+            with torch.backends.cuda.sdp_kernel(**self.cuda_config._asdict()):
+                out = F.scaled_dot_product_attention(
+                    q, k, v,
+                    attn_mask = mask,
+                    dropout_p = self.dropout if self.training else 0.
+                )
+        except:
+            print_once('no hardware detected, falling back to naive implementation from memory-efficient-attention-pytorch library')
+            self.no_hardware_detected = True
+
+            out = FlashAttentionFunction.apply(q, k, v, mask, False, 512, 512)
 
         return out
 
