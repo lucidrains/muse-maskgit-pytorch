@@ -4,7 +4,7 @@ import math
 from math import sqrt
 from functools import partial, wraps
 
-from vector_quantize_pytorch import VectorQuantize as VQ
+from vector_quantize_pytorch import VectorQuantize as VQ, LFQ
 
 import torch
 from torch import nn, einsum
@@ -13,7 +13,7 @@ from torch.autograd import grad as torch_grad
 
 import torchvision
 
-from einops import rearrange, reduce, repeat
+from einops import rearrange, reduce, repeat, pack, unpack
 from einops.layers.torch import Rearrange
 
 # constants
@@ -292,12 +292,18 @@ class VQGanVAE(nn.Module):
         l2_recon_loss = False,
         use_hinge_loss = True,
         vgg = None,
-        vq_codebook_dim = 256,
-        vq_codebook_size = 512,
-        vq_decay = 0.8,
-        vq_commitment_weight = 1.,
-        vq_kmeans_init = True,
-        vq_use_cosine_sim = True,
+        lookup_free_quantization = True,
+        codebook_size = 65536,
+        vq_kwargs: dict = dict(
+            codebook_dim = 256,
+            decay = 0.8,
+            commitment_weight = 1.,
+            kmeans_init = True,
+            use_cosine_sim = True,
+        ),
+        lfq_kwargs: dict = dict(
+            diversity_gamma = 4.
+        ),
         use_vgg_and_gan = True,
         discr_layers = 4,
         **kwargs
@@ -307,7 +313,7 @@ class VQGanVAE(nn.Module):
         encdec_kwargs, kwargs = groupby_prefix_and_trim('encdec_', kwargs)
 
         self.channels = channels
-        self.codebook_size = vq_codebook_size
+        self.codebook_size = codebook_size
         self.dim_divisor = 2 ** layers
 
         enc_dec_klass = ResnetEncDec
@@ -319,17 +325,20 @@ class VQGanVAE(nn.Module):
             **encdec_kwargs
         )
 
-        self.vq = VQ(
-            dim = self.enc_dec.encoded_dim,
-            codebook_dim = vq_codebook_dim,
-            codebook_size = vq_codebook_size,
-            decay = vq_decay,
-            commitment_weight = vq_commitment_weight,
-            accept_image_fmap = True,
-            kmeans_init = vq_kmeans_init,
-            use_cosine_sim = vq_use_cosine_sim,
-            **vq_kwargs
-        )
+        self.lookup_free_quantization = lookup_free_quantization
+
+        if lookup_free_quantization:
+            self.quantizer = LFQ(
+                dim = self.enc_dec.encoded_dim,
+                codebook_size = codebook_size
+            )
+        else:
+            self.quantizer = VQ(
+                dim = self.enc_dec.encoded_dim,
+                codebook_size = codebook_size,
+                accept_image_fmap = True
+                **vq_kwargs
+            )
 
         # reconstruction loss
 
@@ -409,18 +418,21 @@ class VQGanVAE(nn.Module):
         state_dict = torch.load(str(path))
         self.load_state_dict(state_dict)
 
-    @property
-    def codebook(self):
-        return self.vq.codebook
-
     def encode(self, fmap):
         fmap = self.enc_dec.encode(fmap)
-        fmap, indices, commit_loss = self.vq(fmap)
-        return fmap, indices, commit_loss
+        fmap, indices, vq_aux_loss = self.quantizer(fmap)
+        return fmap, indices, vq_aux_loss
 
     def decode_from_ids(self, ids):
-        codes = self.codebook[ids]
-        fmap = self.vq.project_out(codes)
+
+        if self.lookup_free_quantization:
+            ids, ps = pack([ids], 'b *')
+            fmap = self.quantizer.indices_to_codes(ids)
+            fmap, = unpack(fmap, ps, 'b * c')
+        else:
+            codes = self.codebook[ids]
+            fmap = self.quantizer.project_out(codes)
+
         fmap = rearrange(fmap, 'b h w c -> b c h w')
         return self.decode(fmap)
 

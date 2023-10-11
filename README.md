@@ -22,7 +22,7 @@ from muse_maskgit_pytorch import VQGanVAE, VQGanVAETrainer
 
 vae = VQGanVAE(
     dim = 256,
-    vq_codebook_size = 512
+    codebook_size = 65536
 )
 
 # train on folder of images, as many images as possible
@@ -49,7 +49,7 @@ from muse_maskgit_pytorch import VQGanVAE, MaskGit, MaskGitTransformer
 
 vae = VQGanVAE(
     dim = 256,
-    vq_codebook_size = 512
+    codebook_size = 65536
 ).cuda()
 
 vae.load('/path/to/vae.pt') # you will want to load the exponentially moving averaged VAE
@@ -59,7 +59,7 @@ vae.load('/path/to/vae.pt') # you will want to load the exponentially moving ave
 # (1) create your transformer / attention network
 
 transformer = MaskGitTransformer(
-    num_tokens = 512,         # must be same as codebook size above
+    num_tokens = 65536,       # must be same as codebook size above
     seq_len = 256,            # must be equivalent to fmap_size ** 2 in vae
     dim = 512,                # model dimension
     depth = 8,                # depth
@@ -125,7 +125,7 @@ from muse_maskgit_pytorch import VQGanVAE, MaskGit, MaskGitTransformer
 
 vae = VQGanVAE(
     dim = 256,
-    vq_codebook_size = 512
+    codebook_size = 65536
 ).cuda()
 
 vae.load('./path/to/vae.pt') # you will want to load the exponentially moving averaged VAE
@@ -135,7 +135,7 @@ vae.load('./path/to/vae.pt') # you will want to load the exponentially moving av
 # (1) create your transformer / attention network
 
 transformer = MaskGitTransformer(
-    num_tokens = 512,         # must be same as codebook size above
+    num_tokens = 65536,       # must be same as codebook size above
     seq_len = 1024,           # must be equivalent to fmap_size ** 2 in vae
     dim = 512,                # model dimension
     depth = 2,                # depth
@@ -290,5 +290,27 @@ images # List[PIL.Image.Image]
     author  = {Dao, Tri and Fu, Daniel Y. and Ermon, Stefano and Rudra, Atri and R{\'e}, Christopher},
     booktitle = {Advances in Neural Information Processing Systems},
     year    = {2022}
+}
+```
+
+```bibtex
+@misc{mentzer2023finite,
+    title   = {Finite Scalar Quantization: VQ-VAE Made Simple},
+    author  = {Fabian Mentzer and David Minnen and Eirikur Agustsson and Michael Tschannen},
+    year    = {2023},
+    eprint  = {2309.15505},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
+}
+```
+
+```bibtex
+@misc{yu2023language,
+    title   = {Language Model Beats Diffusion -- Tokenizer is Key to Visual Generation},
+    author  = {Lijun Yu and José Lezama and Nitesh B. Gundavarapu and Luca Versari and Kihyuk Sohn and David Minnen and Yong Cheng and Agrim Gupta and Xiuye Gu and Alexander G. Hauptmann and Boqing Gong and Ming-Hsuan Yang and Irfan Essa and David A. Ross and Lu Jiang},
+    year    = {2023},
+    eprint  = {2310.05737},
+    archivePrefix = {arXiv},
+    primaryClass = {cs.CV}
 }
 ```
