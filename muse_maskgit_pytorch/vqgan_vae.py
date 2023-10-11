@@ -330,7 +330,8 @@ class VQGanVAE(nn.Module):
         if lookup_free_quantization:
             self.quantizer = LFQ(
                 dim = self.enc_dec.encoded_dim,
-                codebook_size = codebook_size
+                codebook_size = codebook_size,
+                **lfq_kwargs
             )
         else:
             self.quantizer = VQ(
