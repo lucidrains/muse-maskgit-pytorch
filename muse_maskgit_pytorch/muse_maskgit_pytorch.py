@@ -305,7 +305,7 @@ class Transformer(nn.Module):
 
         # classifier free guidance
 
-        if self.training and cond_drop_prob > 0.:
+        if cond_drop_prob > 0.:
             mask = prob_mask_like((b, 1), 1. - cond_drop_prob, device)
             context_mask = context_mask & mask
 
