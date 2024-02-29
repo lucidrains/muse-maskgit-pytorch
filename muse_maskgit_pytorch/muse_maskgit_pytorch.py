@@ -701,7 +701,7 @@ class MaskGit(nn.Module):
                     x,
                     text_embeds = text_embeds,
                     conditioning_token_ids = cond_token_ids,
-                    cond_drop_prob = 0.,
+                    cond_drop_prob = 1.,
                     return_embed = True
                 )
 
